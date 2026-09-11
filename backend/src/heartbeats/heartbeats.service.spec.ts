@@ -17,9 +17,11 @@ describe('HeartbeatsService', () => {
     device: { update: jest.fn() },
   };
   const trackerGateway = { emitActivityUpdated: jest.fn() };
+  const dailySummary = { applyEmployeeRange: jest.fn() };
   const service = new HeartbeatsService(
     prisma as never,
     trackerGateway as never,
+    dailySummary as never,
   );
 
   beforeEach(() => {
@@ -45,5 +47,6 @@ describe('HeartbeatsService', () => {
     });
     expect(result.success).toBe(true);
     expect(trackerGateway.emitActivityUpdated).toHaveBeenCalled();
+    expect(dailySummary.applyEmployeeRange).toHaveBeenCalled();
   });
 });

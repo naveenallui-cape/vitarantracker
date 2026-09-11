@@ -199,4 +199,26 @@ describe('WorkTimeCalculationService', () => {
     expect(summary.activeSeconds).toBe(2 * 3600);
     expect(summary.activeSeconds).not.toBe(8 * 3600);
   });
+
+  it('extends an open ACTIVE session using lastSeenAt from heartbeats', () => {
+    const [summary] = service.calculate(
+      [
+        {
+          deviceId: 'd1',
+          eventType: 'ACTIVE',
+          occurredAt: new Date('2026-09-11T04:00:00.000Z'),
+        },
+      ],
+      {
+        from: new Date('2026-09-11T00:00:00.000Z'),
+        to: new Date('2026-09-11T00:00:00.000Z'),
+        asOf: new Date('2026-09-11T06:00:00.000Z'),
+        deviceLastSeen: {
+          d1: new Date('2026-09-11T05:59:30.000Z'),
+        },
+      },
+    );
+
+    expect(summary.activeSeconds).toBe(2 * 3600);
+  });
 });

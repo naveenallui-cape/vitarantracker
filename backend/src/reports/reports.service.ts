@@ -7,6 +7,7 @@ import {
   parseUtcDate,
   startOfUtcDay,
 } from '../common/utils/time.util';
+import { DailySummaryService } from '../work-time/daily-summary.service';
 import { WorkTimeReportQueryDto } from './dto/work-time-report-query.dto';
 
 const EMPLOYEE_SELECT = {
@@ -23,13 +24,17 @@ const EMPLOYEE_SELECT = {
 
 @Injectable()
 export class ReportsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly dailySummary: DailySummaryService,
+  ) {}
 
   async workTime(query: WorkTimeReportQueryDto) {
     const today = formatUtcDate(new Date());
     const from = parseUtcDate(query.from ?? today);
     const to = parseUtcDate(query.to ?? today);
     const dates = this.eachUtcDate(from, to);
+    await this.refreshSummaries(from, to);
 
     const employeeWhere: Prisma.EmployeeWhereInput = {};
     if (query.employeeId) {
@@ -151,6 +156,17 @@ export class ReportsService {
     );
 
     return [header, ...lines].join('\n');
+  }
+
+  private async refreshSummaries(from: Date, to: Date): Promise<void> {
+    const employees = await this.prisma.employee.findMany({
+      where: { devices: { some: {} } },
+      select: { id: true },
+    });
+
+    for (const employee of employees) {
+      await this.dailySummary.applyEmployeeRange(employee.id, from, to);
+    }
   }
 
   private eachUtcDate(from: Date, to: Date): string[] {

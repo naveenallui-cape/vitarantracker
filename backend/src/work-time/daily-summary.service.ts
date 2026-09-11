@@ -70,6 +70,8 @@ export class DailySummaryService {
       from: startOfUtcDay(from),
       to: startOfUtcDay(to),
       deviceLastSeen,
+      asOf: new Date(),
+      offlineGraceMs: 3 * 60 * 1000,
     });
 
     for (const summary of summaries) {
@@ -109,6 +111,12 @@ export class DailySummaryService {
     if (!employee) {
       return { employee: null, summaries: [] };
     }
+
+    const from = query.from
+      ? parseUtcDate(query.from)
+      : startOfUtcDay(new Date());
+    const to = query.to ? parseUtcDate(query.to) : from;
+    await this.applyEmployeeRange(employee.id, from, to);
 
     const where: Prisma.DailyWorkSummaryWhereInput = {
       employeeId: employee.id,

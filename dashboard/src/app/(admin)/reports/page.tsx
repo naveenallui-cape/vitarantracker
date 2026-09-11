@@ -1,18 +1,13 @@
 import { ReportsClient } from "./reports-client";
 import { serverApi } from "@/lib/server-api";
+import { todayInWorkTimezone } from "@/lib/work-day";
 import type { WorkTimeReport } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-function utcDate(offsetDays = 0) {
-  const date = new Date();
-  date.setUTCDate(date.getUTCDate() + offsetDays);
-  return date.toISOString().slice(0, 10);
-}
-
 export default async function ReportsPage() {
-  const from = utcDate(0);
-  const to = utcDate(0);
+  const from = todayInWorkTimezone();
+  const to = todayInWorkTimezone();
   let report: WorkTimeReport | null = null;
   let error = "";
 

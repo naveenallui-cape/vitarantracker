@@ -26,12 +26,16 @@ export type WorkTime = {
 
 export function EmployeeDetailClient({
   employeeId,
+  workFrom,
+  workTo,
   initialEmployee,
   initialDevices,
   initialWork,
   initialError = "",
 }: {
   employeeId: string;
+  workFrom: string;
+  workTo: string;
   initialEmployee: Employee | null;
   initialDevices: Device[];
   initialWork: WorkTime | null;
@@ -49,7 +53,9 @@ export function EmployeeDetailClient({
     const [nextEmployee, nextDevices, nextWork] = await Promise.all([
       api<Employee>(`/admin/employees/${employeeId}`),
       api<Device[]>(`/admin/employees/${employeeId}/devices`),
-      api<WorkTime>(`/admin/employees/${employeeId}/work-time`),
+      api<WorkTime>(
+        `/admin/employees/${employeeId}/work-time?from=${workFrom}&to=${workTo}`,
+      ),
     ]);
     setEmployee(nextEmployee);
     setDevices(listFrom<Device>(nextDevices));

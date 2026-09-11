@@ -29,6 +29,7 @@ export type CalculateWorkTimeOptions = {
   deviceLastSeen?: Record<string, Date | null | undefined>;
   from?: Date;
   to?: Date;
+  offlineGraceMs?: number;
 };
 
 type Interval = {
@@ -54,6 +55,7 @@ export class WorkTimeCalculationService {
     options: CalculateWorkTimeOptions = {},
   ): DaySummary[] {
     const asOf = options.asOf ?? new Date();
+    const offlineGraceMs = options.offlineGraceMs ?? 3 * 60 * 1000;
     const byDevice = new Map<string, TimelineEvent[]>();
 
     for (const event of events) {
@@ -69,6 +71,7 @@ export class WorkTimeCalculationService {
         deviceEvents,
         asOf,
         options.deviceLastSeen?.[deviceId],
+        offlineGraceMs,
       );
       for (const interval of intervals) {
         for (const part of this.splitByUtcDays(interval)) {
@@ -100,6 +103,7 @@ export class WorkTimeCalculationService {
     events: TimelineEvent[],
     asOf: Date,
     lastSeenAt?: Date | null,
+    offlineGraceMs = 3 * 60 * 1000,
   ): Interval[] {
     const sorted = [...events].sort(
       (left, right) => left.occurredAt.getTime() - right.occurredAt.getTime(),
@@ -112,7 +116,7 @@ export class WorkTimeCalculationService {
       const start = current.occurredAt;
       const end = next
         ? next.occurredAt
-        : this.resolveOpenEnd(start, asOf, lastSeenAt);
+        : this.resolveOpenEnd(start, asOf, lastSeenAt, offlineGraceMs);
 
       if (!end || end <= start) {
         continue;
@@ -132,11 +136,18 @@ export class WorkTimeCalculationService {
     start: Date,
     asOf: Date,
     lastSeenAt?: Date | null,
+    offlineGraceMs = 3 * 60 * 1000,
   ): Date | null {
-    if (!lastSeenAt || lastSeenAt <= start) {
+    if (!lastSeenAt || lastSeenAt < start) {
       return null;
     }
-    return lastSeenAt < asOf ? lastSeenAt : asOf;
+
+    const recentlySeen = asOf.getTime() - lastSeenAt.getTime() <= offlineGraceMs;
+    if (recentlySeen && asOf > start) {
+      return asOf;
+    }
+
+    return lastSeenAt > start ? lastSeenAt : null;
   }
 
   private splitByUtcDays(interval: Interval): Interval[] {

@@ -1,6 +1,7 @@
 import { EmployeeDetailClient, type WorkTime } from "./employee-detail-client";
 import { listFrom } from "@/lib/api";
 import { serverApi } from "@/lib/server-api";
+import { addCalendarDays, todayInWorkTimezone } from "@/lib/work-day";
 import type { Device, Employee } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -11,10 +12,8 @@ export default async function EmployeeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const to = new Date().toISOString().slice(0, 10);
-  const fromDate = new Date();
-  fromDate.setUTCDate(fromDate.getUTCDate() - 13);
-  const from = fromDate.toISOString().slice(0, 10);
+  const to = todayInWorkTimezone();
+  const from = addCalendarDays(to, -13);
   let employee: Employee | null = null;
   let devices: Device[] = [];
   let work: WorkTime | null = null;
@@ -38,6 +37,8 @@ export default async function EmployeeDetailPage({
   return (
     <EmployeeDetailClient
       employeeId={id}
+      workFrom={from}
+      workTo={to}
       initialEmployee={employee}
       initialDevices={devices}
       initialWork={work}

@@ -2,9 +2,10 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { AppException } from '../common/errors/app.exception';
 import { ErrorCodes } from '../common/errors/error-codes';
-import { parseOccurredAt } from '../common/utils/time.util';
+import { parseOccurredAt, startOfUtcDay } from '../common/utils/time.util';
 import { AuthenticatedDevice } from '../common/decorators/current-device.decorator';
 import { TrackerGateway } from '../tracker/tracker.gateway';
+import { DailySummaryService } from '../work-time/daily-summary.service';
 import { HeartbeatDto } from './dto/heartbeat.dto';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class HeartbeatsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly trackerGateway: TrackerGateway,
+    private readonly dailySummary: DailySummaryService,
   ) {}
 
   async ingest(device: AuthenticatedDevice, dto: HeartbeatDto) {
@@ -26,6 +28,12 @@ export class HeartbeatsService {
         lastSeenAt: occurredAt,
       },
     });
+
+    await this.dailySummary.applyEmployeeRange(
+      device.employeeId,
+      startOfUtcDay(occurredAt),
+      occurredAt,
+    );
 
     this.trackerGateway.emitActivityUpdated({
       employeeId: device.employeeId,
