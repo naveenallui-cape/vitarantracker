@@ -14,6 +14,16 @@ export class ReportsController {
     return this.reportsService.workTime(query);
   }
 
+  @Get('overview')
+  overview(@Query() query: WorkTimeReportQueryDto) {
+    return this.reportsService.overview(query);
+  }
+
+  @Get('timeline')
+  timeline(@Query() query: WorkTimeReportQueryDto) {
+    return this.reportsService.timeline(query);
+  }
+
   @Get('work-time/export')
   async export(@Query() query: WorkTimeReportQueryDto, @Res() res: Response) {
     const csv = await this.reportsService.exportCsv(query);

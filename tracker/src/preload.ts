@@ -8,7 +8,6 @@ contextBridge.exposeInMainWorld("vitarantracker", {
     registrationCode: string;
     deviceName: string;
   }) => ipcRenderer.invoke("tracker:register", payload),
-  unregister: () => ipcRenderer.invoke("tracker:unregister"),
   onStatus: (listener: (status: string) => void) => {
     ipcRenderer.on("tracker:status", (_event, status: string) => listener(status));
   },

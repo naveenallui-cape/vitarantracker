@@ -43,6 +43,15 @@ export class DeviceRegistrationService {
       );
     }
 
+    const linked = await this.findLinkedDevice(employee.id);
+    if (linked) {
+      throw new AppException(
+        'This employee already has a connected laptop. Unlink that device before generating a new registration code.',
+        ErrorCodes.DEVICE_ALREADY_LINKED,
+        HttpStatus.CONFLICT,
+      );
+    }
+
     const code = generateRegistrationCode();
     const codeHash = hashWithSecret(
       normalizeRegistrationCode(code),
@@ -99,12 +108,36 @@ export class DeviceRegistrationService {
       );
     }
 
+    const linked = await this.findLinkedDevice(employee.id);
+    if (linked) {
+      throw new AppException(
+        'This employee already has a connected laptop. Unlink that device before registering another.',
+        ErrorCodes.DEVICE_ALREADY_LINKED,
+        HttpStatus.CONFLICT,
+      );
+    }
+
     const codeHash = hashWithSecret(
       normalizeRegistrationCode(dto.registrationCode),
       this.secret(),
     );
 
     return this.prisma.$transaction(async (tx) => {
+      const existingDevice = await tx.device.findFirst({
+        where: {
+          employeeId: employee.id,
+          status: { not: 'REVOKED' },
+        },
+        select: { id: true },
+      });
+      if (existingDevice) {
+        throw new AppException(
+          'This employee already has a connected laptop. Unlink that device before registering another.',
+          ErrorCodes.DEVICE_ALREADY_LINKED,
+          HttpStatus.CONFLICT,
+        );
+      }
+
       const registration = await tx.deviceRegistrationCode.findFirst({
         where: {
           employeeId: employee.id,
@@ -181,6 +214,16 @@ export class DeviceRegistrationService {
         deviceId: device.id,
         deviceToken,
       };
+    });
+  }
+
+  private async findLinkedDevice(employeeId: string) {
+    return this.prisma.device.findFirst({
+      where: {
+        employeeId,
+        status: { not: 'REVOKED' },
+      },
+      select: { id: true },
     });
   }
 

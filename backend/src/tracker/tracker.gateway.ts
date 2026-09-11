@@ -10,6 +10,9 @@ import { AppConfig } from '../config/configuration';
 
 export type TrackerActivityPayload = {
   employeeId: string;
+  employeeName?: string;
+  employeeCode?: string;
+  department?: string;
   deviceId: string;
   status: 'ACTIVE' | 'IDLE' | 'LOCKED' | 'UNLOCKED';
   timestamp: string;

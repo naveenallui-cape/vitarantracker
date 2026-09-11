@@ -6,7 +6,12 @@ import {
   type HeartbeatStatus,
 } from "./state-machine";
 import type { DeviceCredentials } from "./store";
-import { flushQueue, sendEvent, sendHeartbeat } from "./api";
+import {
+  flushQueue,
+  sendEvent,
+  sendHeartbeat,
+  type PostResult,
+} from "./api";
 
 const IDLE_THRESHOLD_SECONDS = Number(process.env.IDLE_THRESHOLD_MINUTES ?? 5) * 60;
 const HEARTBEAT_INTERVAL_MS = 60_000;
@@ -16,10 +21,12 @@ export class ActivityMonitor {
   private current: HeartbeatStatus = "ACTIVE";
   private locked = false;
   private timers: NodeJS.Timeout[] = [];
+  private unlinked = false;
 
   constructor(
     private readonly credentials: DeviceCredentials,
     private readonly onStatus: (status: HeartbeatStatus | "UNLOCKED") => void,
+    private readonly onUnlinked?: () => void,
   ) {}
 
   start() {
@@ -35,13 +42,12 @@ export class ActivityMonitor {
     this.timers.push(setInterval(() => this.poll(), POLL_INTERVAL_MS));
     this.timers.push(
       setInterval(() => {
-        void sendHeartbeat(this.credentials, this.current);
-        void flushQueue(this.credentials);
+        void this.beat();
       }, HEARTBEAT_INTERVAL_MS),
     );
 
     void this.emit("ACTIVE");
-    void sendHeartbeat(this.credentials, "ACTIVE");
+    void this.beat();
   }
 
   stop() {
@@ -52,6 +58,9 @@ export class ActivityMonitor {
   }
 
   private poll() {
+    if (this.unlinked) {
+      return;
+    }
     const idleSeconds = powerMonitor.getSystemIdleTime();
     const event = nextEvent(this.current, {
       locked: this.locked,
@@ -63,12 +72,40 @@ export class ActivityMonitor {
     }
   }
 
+  private async beat() {
+    if (this.unlinked) {
+      return;
+    }
+    const heartbeat = await sendHeartbeat(this.credentials, this.current);
+    if (this.handleResult(heartbeat)) {
+      return;
+    }
+    const flushed = await flushQueue(this.credentials);
+    this.handleResult(flushed);
+  }
+
   private async emit(eventType: ActivityEventType) {
+    if (this.unlinked) {
+      return;
+    }
     if (eventType !== "UNLOCKED" && this.current === eventType) {
       return;
     }
-    await sendEvent(this.credentials, eventType);
+    const result = await sendEvent(this.credentials, eventType);
+    if (this.handleResult(result)) {
+      return;
+    }
     this.current = heartbeatStatusFrom(eventType);
     this.onStatus(eventType === "UNLOCKED" ? "UNLOCKED" : this.current);
+  }
+
+  private handleResult(result: PostResult) {
+    if (!result.unlinked || this.unlinked) {
+      return result.unlinked;
+    }
+    this.unlinked = true;
+    this.stop();
+    this.onUnlinked?.();
+    return true;
   }
 }

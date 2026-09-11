@@ -18,15 +18,61 @@ let tray: Tray | null = null;
 let monitor: ActivityMonitor | null = null;
 let currentStatus = "OFFLINE";
 
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+}
+
 function isWindows() {
   return process.platform === "win32";
 }
 
+function isRegistered() {
+  return Boolean(loadCredentials());
+}
+
+function hideToBackground() {
+  window?.hide();
+  window?.setSkipTaskbar(true);
+}
+
+function showSetupWindow() {
+  window?.setSkipTaskbar(false);
+  window?.show();
+  window?.focus();
+}
+
+function refreshTray() {
+  if (!tray) {
+    return;
+  }
+  const registered = isRegistered();
+  tray.setToolTip(
+    registered
+      ? `Vitarantracker · ${currentStatus}`
+      : "Vitarantracker · setup required",
+  );
+  tray.setContextMenu(
+    Menu.buildFromTemplate(
+      registered
+        ? [
+            { label: "Running in background", enabled: false },
+            { label: `Status: ${currentStatus}`, enabled: false },
+            { label: "Managed by admin. No login or logout on this laptop.", enabled: false },
+          ]
+        : [{ label: "Open setup", click: () => showSetupWindow() }],
+    ),
+  );
+}
+
 function createWindow() {
+  const registered = isRegistered();
   window = new BrowserWindow({
     width: 520,
     height: 680,
     title: "Vitarantracker",
+    show: false,
+    skipTaskbar: registered,
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -36,9 +82,15 @@ function createWindow() {
   });
   void window.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
   window.on("close", (event) => {
-    if (loadCredentials()) {
+    if (isRegistered()) {
       event.preventDefault();
-      window?.hide();
+      hideToBackground();
+      return;
+    }
+  });
+  window.once("ready-to-show", () => {
+    if (!isRegistered()) {
+      showSetupWindow();
     }
   });
 }
@@ -46,20 +98,22 @@ function createWindow() {
 function createTray() {
   const image = nativeImage.createEmpty();
   tray = new Tray(image);
-  tray.setToolTip("Vitarantracker");
-  tray.setContextMenu(
-    Menu.buildFromTemplate([
-      { label: "Open", click: () => window?.show() },
-      {
-        label: "Quit",
-        click: () => {
-          monitor?.stop();
-          app.exit(0);
-        },
-      },
-    ]),
-  );
-  tray.on("click", () => window?.show());
+  refreshTray();
+  tray.on("click", () => {
+    if (!isRegistered()) {
+      showSetupWindow();
+    }
+  });
+}
+
+function stopForAdminUnlink() {
+  monitor?.stop();
+  monitor = null;
+  clearCredentials();
+  currentStatus = "OFFLINE";
+  refreshTray();
+  showSetupWindow();
+  window?.webContents.send("tracker:status", "OFFLINE");
 }
 
 function startMonitor() {
@@ -68,34 +122,56 @@ function startMonitor() {
     return;
   }
   monitor?.stop();
-  monitor = new ActivityMonitor(credentials, (status) => {
-    currentStatus = status;
-    window?.webContents.send("tracker:status", status);
-  });
+  monitor = new ActivityMonitor(
+    credentials,
+    (status) => {
+      currentStatus = status;
+      refreshTray();
+      window?.webContents.send("tracker:status", status);
+    },
+    () => {
+      stopForAdminUnlink();
+    },
+  );
   monitor.start();
+  refreshTray();
 }
 
-app.whenReady().then(() => {
-  if (app.isPackaged && !isWindows()) {
-    void dialog.showErrorBox(
-      "Windows only",
-      "Vitarantracker is for company-owned Windows laptops.",
-    );
-    app.quit();
-    return;
-  }
+if (gotLock) {
+  app.on("second-instance", () => {
+    if (!isRegistered()) {
+      showSetupWindow();
+    }
+  });
 
-  if (!app.isPackaged && !isWindows()) {
-    console.warn(
-      "Development mode on a non-Windows OS. Idle/lock APIs may be limited. Production builds are Windows-only.",
-    );
-  }
+  app.whenReady().then(() => {
+    if (app.isPackaged && !isWindows()) {
+      void dialog.showErrorBox(
+        "Windows only",
+        "Vitarantracker is for company-owned Windows laptops.",
+      );
+      app.quit();
+      return;
+    }
 
-  createWindow();
-  createTray();
-  app.setLoginItemSettings({ openAtLogin: isWindows() && app.isPackaged });
-  startMonitor();
-});
+    if (!app.isPackaged && !isWindows()) {
+      console.warn(
+        "Development mode on a non-Windows OS. Idle/lock APIs may be limited. Production builds are Windows-only.",
+      );
+    }
+
+    createWindow();
+    createTray();
+    app.setLoginItemSettings({
+      openAtLogin: isWindows() && app.isPackaged,
+      openAsHidden: true,
+    });
+    startMonitor();
+    if (isRegistered()) {
+      hideToBackground();
+    }
+  });
+}
 
 ipcMain.handle("tracker:get-state", () => {
   const credentials = loadCredentials();
@@ -104,7 +180,8 @@ ipcMain.handle("tracker:get-state", () => {
     employeeId: credentials?.employeeId ?? "",
     deviceName: credentials?.deviceName ?? os.hostname(),
     hostname: os.hostname(),
-    backendUrl: credentials?.backendUrl ?? "https://vitarantracker-one.vercel.app",
+    backendUrl:
+      credentials?.backendUrl ?? "https://vitarantracker-one.vercel.app",
     status: currentStatus,
     platform: process.platform,
     windowsOnly: isWindows(),
@@ -132,20 +209,13 @@ ipcMain.handle(
     });
     currentStatus = "ACTIVE";
     startMonitor();
+    hideToBackground();
     return { success: true, deviceId: registered.deviceId };
   },
 );
 
-ipcMain.handle("tracker:unregister", () => {
-  monitor?.stop();
-  monitor = null;
-  clearCredentials();
-  currentStatus = "OFFLINE";
-  return { success: true };
-});
-
 app.on("window-all-closed", () => {
-  if (!loadCredentials()) {
+  if (!isRegistered()) {
     app.quit();
   }
 });

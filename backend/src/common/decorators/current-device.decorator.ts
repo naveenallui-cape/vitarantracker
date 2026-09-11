@@ -4,6 +4,9 @@ import { ActivityStatus, DeviceStatus, OperatingSystem } from '@prisma/client';
 export type AuthenticatedDevice = {
   id: string;
   employeeId: string;
+  employeeName?: string;
+  employeeCode?: string;
+  department?: string;
   deviceName: string;
   hostname: string;
   operatingSystem: OperatingSystem;

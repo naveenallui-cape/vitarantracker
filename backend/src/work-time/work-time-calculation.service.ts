@@ -24,6 +24,17 @@ export type DaySummary = {
   totalTrackedSeconds: number;
 };
 
+export type TimelineSegment = {
+  start: Date;
+  end: Date;
+  status: TrackedStatus;
+};
+
+export type DayTimeline = {
+  date: string;
+  segments: TimelineSegment[];
+};
+
 export type CalculateWorkTimeOptions = {
   asOf?: Date;
   deviceLastSeen?: Record<string, Date | null | undefined>;
@@ -83,20 +94,48 @@ export class WorkTimeCalculationService {
       }
     }
 
-    return [...dayIntervals.keys()]
-      .sort()
-      .filter((date) => {
-        if (options.from && date < formatUtcDate(options.from)) {
-          return false;
-        }
-        if (options.to && date > formatUtcDate(options.to)) {
-          return false;
-        }
-        return true;
-      })
-      .map((date) =>
-        this.mergeDayIntervals(date, dayIntervals.get(date) ?? []),
+    return this.datesInRange(dayIntervals, options).map((date) =>
+      this.mergeDayIntervals(date, dayIntervals.get(date) ?? []),
+    );
+  }
+
+  segments(
+    events: TimelineEvent[],
+    options: CalculateWorkTimeOptions = {},
+  ): DayTimeline[] {
+    const asOf = options.asOf ?? new Date();
+    const offlineGraceMs = options.offlineGraceMs ?? 3 * 60 * 1000;
+    const byDevice = new Map<string, TimelineEvent[]>();
+
+    for (const event of events) {
+      const list = byDevice.get(event.deviceId) ?? [];
+      list.push(event);
+      byDevice.set(event.deviceId, list);
+    }
+
+    const dayIntervals = new Map<string, Interval[]>();
+
+    for (const [deviceId, deviceEvents] of byDevice.entries()) {
+      const intervals = this.buildDeviceIntervals(
+        deviceEvents,
+        asOf,
+        options.deviceLastSeen?.[deviceId],
+        offlineGraceMs,
       );
+      for (const interval of intervals) {
+        for (const part of this.splitByUtcDays(interval)) {
+          const key = formatUtcDate(part.start);
+          const list = dayIntervals.get(key) ?? [];
+          list.push(part);
+          dayIntervals.set(key, list);
+        }
+      }
+    }
+
+    return this.datesInRange(dayIntervals, options).map((date) => ({
+      date,
+      segments: this.mergeSlices(dayIntervals.get(date) ?? []),
+    }));
   }
 
   private buildDeviceIntervals(
@@ -164,17 +203,24 @@ export class WorkTimeCalculationService {
     return parts;
   }
 
-  private mergeDayIntervals(date: string, intervals: Interval[]): DaySummary {
+  private datesInRange(
+    dayIntervals: Map<string, Interval[]>,
+    options: CalculateWorkTimeOptions,
+  ): string[] {
+    return [...dayIntervals.keys()].sort().filter((date) => {
+      if (options.from && date < formatUtcDate(options.from)) {
+        return false;
+      }
+      if (options.to && date > formatUtcDate(options.to)) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  private mergeSlices(intervals: Interval[]): TimelineSegment[] {
     if (intervals.length === 0) {
-      return {
-        date,
-        firstActiveAt: null,
-        lastActivityAt: null,
-        activeSeconds: 0,
-        idleSeconds: 0,
-        lockedSeconds: 0,
-        totalTrackedSeconds: 0,
-      };
+      return [];
     }
 
     const points = new Set<number>();
@@ -184,11 +230,7 @@ export class WorkTimeCalculationService {
     }
 
     const sorted = [...points].sort((left, right) => left - right);
-    let activeSeconds = 0;
-    let idleSeconds = 0;
-    let lockedSeconds = 0;
-    let firstActiveAt: Date | null = null;
-    let lastActivityAt: Date | null = null;
+    const slices: TimelineSegment[] = [];
 
     for (let index = 0; index < sorted.length - 1; index += 1) {
       const segmentStart = sorted[index];
@@ -213,18 +255,56 @@ export class WorkTimeCalculationService {
         continue;
       }
 
-      const seconds = Math.floor((segmentEnd - segmentStart) / 1000);
-      if (best === 'ACTIVE') {
+      const previous = slices[slices.length - 1];
+      if (previous && previous.status === best) {
+        previous.end = new Date(segmentEnd);
+      } else {
+        slices.push({
+          start: new Date(segmentStart),
+          end: new Date(segmentEnd),
+          status: best,
+        });
+      }
+    }
+
+    return slices;
+  }
+
+  private mergeDayIntervals(date: string, intervals: Interval[]): DaySummary {
+    const slices = this.mergeSlices(intervals);
+    if (slices.length === 0) {
+      return {
+        date,
+        firstActiveAt: null,
+        lastActivityAt: null,
+        activeSeconds: 0,
+        idleSeconds: 0,
+        lockedSeconds: 0,
+        totalTrackedSeconds: 0,
+      };
+    }
+
+    let activeSeconds = 0;
+    let idleSeconds = 0;
+    let lockedSeconds = 0;
+    let firstActiveAt: Date | null = null;
+    let lastActivityAt: Date | null = null;
+
+    for (const slice of slices) {
+      const seconds = Math.floor(
+        (slice.end.getTime() - slice.start.getTime()) / 1000,
+      );
+      if (slice.status === 'ACTIVE') {
         activeSeconds += seconds;
         if (!firstActiveAt) {
-          firstActiveAt = new Date(segmentStart);
+          firstActiveAt = slice.start;
         }
-      } else if (best === 'IDLE') {
+      } else if (slice.status === 'IDLE') {
         idleSeconds += seconds;
       } else {
         lockedSeconds += seconds;
       }
-      lastActivityAt = new Date(segmentEnd);
+      lastActivityAt = slice.end;
     }
 
     return {

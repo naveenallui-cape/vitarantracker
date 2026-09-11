@@ -221,4 +221,43 @@ describe('WorkTimeCalculationService', () => {
 
     expect(summary.activeSeconds).toBe(2 * 3600);
   });
+
+  it('returns merged keyboard/mouse segments for a day timeline', () => {
+    const [day] = service.segments(
+      [
+        {
+          deviceId: 'd1',
+          eventType: 'ACTIVE',
+          occurredAt: new Date('2026-09-11T04:00:00.000Z'),
+        },
+        {
+          deviceId: 'd1',
+          eventType: 'IDLE',
+          occurredAt: new Date('2026-09-11T06:00:00.000Z'),
+        },
+        {
+          deviceId: 'd1',
+          eventType: 'ACTIVE',
+          occurredAt: new Date('2026-09-11T06:30:00.000Z'),
+        },
+      ],
+      {
+        from: new Date('2026-09-11T00:00:00.000Z'),
+        to: new Date('2026-09-11T00:00:00.000Z'),
+        asOf: new Date('2026-09-11T07:00:00.000Z'),
+        deviceLastSeen: {
+          d1: new Date('2026-09-11T06:59:30.000Z'),
+        },
+      },
+    );
+
+    expect(day.segments.map((segment) => segment.status)).toEqual([
+      'ACTIVE',
+      'IDLE',
+      'ACTIVE',
+    ]);
+    expect(day.segments[0].start.toISOString()).toBe(
+      '2026-09-11T04:00:00.000Z',
+    );
+  });
 });

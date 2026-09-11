@@ -10,21 +10,11 @@
       <p class="eyebrow">Company-owned Windows laptop</p>
       <h1>Vitarantracker</h1>
       <p class="lede">
-        This agent reports only activity and inactivity state: active, idle,
-        locked, unlocked, and heartbeat. It never captures keystrokes, typed
-        text, screenshots, clipboard, URLs, or mouse coordinates.
+        One-time setup. After this laptop is registered it runs in the
+        background. There is no daily login or logout. Admin unlinks the device
+        to stop tracking.
       </p>
       <p id="notice" class="notice" hidden></p>
-      <section id="registered" hidden>
-        <p class="status-label">Current state</p>
-        <p id="status" class="status">ACTIVE</p>
-        <dl>
-          <div><dt>Employee ID</dt><dd id="employeeId"></dd></div>
-          <div><dt>Device</dt><dd id="deviceName"></dd></div>
-          <div><dt>Hostname</dt><dd id="hostname"></dd></div>
-        </dl>
-        <button id="unregister">Remove this device from this laptop</button>
-      </section>
       <form id="register" hidden>
         <label>
           Backend URL
@@ -50,6 +40,9 @@
         <p id="error" class="error"></p>
         <button type="submit">Register this Windows laptop</button>
       </form>
+      <p id="background" class="lede" hidden>
+        This laptop is connected. The tracker is running in the background.
+      </p>
     </main>
     <script src="./app.js"></script>
   </body>

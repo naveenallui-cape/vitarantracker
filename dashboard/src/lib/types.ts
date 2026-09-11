@@ -18,6 +18,7 @@ export type Employee = {
   status: EmployeeStatus;
   createdAt: string;
   updatedAt: string;
+  hasLinkedDevice?: boolean;
 };
 
 export type Paginated<T> = {
@@ -92,8 +93,61 @@ export type WorkTimeReport = {
   };
 };
 
+export type CompanyOverviewEmployee = Employee & {
+  activityStatus: ActivityStatus;
+  hasDevice: boolean;
+  deviceId: string | null;
+  deviceName: string | null;
+  lastSeenAt: string | null;
+  firstActiveAt: string | null;
+  lastActivityAt: string | null;
+  activeSeconds: number;
+  idleSeconds: number;
+  lockedSeconds: number;
+  totalTrackedSeconds: number;
+};
+
+export type CompanyOverview = {
+  date: string;
+  generatedAt: string;
+  counts: {
+    workingNow: number;
+    idle: number;
+    locked: number;
+    offline: number;
+    noDevice: number;
+    totalEmployees: number;
+  };
+  totals: {
+    activeSeconds: number;
+    idleSeconds: number;
+    lockedSeconds: number;
+    totalTrackedSeconds: number;
+  };
+  employees: CompanyOverviewEmployee[];
+};
+
+export type ActivitySegment = {
+  start: string;
+  end: string;
+  status: "ACTIVE" | "IDLE" | "LOCKED";
+};
+
+export type DayTimeline = {
+  date: string;
+  dayStart: string;
+  dayEnd: string;
+  rows: Array<{
+    employee: Employee;
+    segments: ActivitySegment[];
+  }>;
+};
+
 export type LiveActivity = {
   employeeId: string;
+  employeeName?: string;
+  employeeCode?: string;
+  department?: string;
   deviceId: string;
   status: "ACTIVE" | "IDLE" | "LOCKED" | "UNLOCKED";
   timestamp: string;

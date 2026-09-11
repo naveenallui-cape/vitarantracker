@@ -37,6 +37,9 @@ export class HeartbeatsService {
 
     this.trackerGateway.emitActivityUpdated({
       employeeId: device.employeeId,
+      employeeName: device.employeeName,
+      employeeCode: device.employeeCode,
+      department: device.department,
       deviceId: device.id,
       status: dto.status,
       timestamp: occurredAt.toISOString(),

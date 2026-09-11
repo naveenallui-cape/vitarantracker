@@ -10,6 +10,13 @@ import {
 import { DailySummaryService } from '../work-time/daily-summary.service';
 import { WorkTimeReportQueryDto } from './dto/work-time-report-query.dto';
 
+const ACTIVITY_RANK: Record<string, number> = {
+  ACTIVE: 4,
+  IDLE: 3,
+  LOCKED: 2,
+  OFFLINE: 1,
+};
+
 const EMPLOYEE_SELECT = {
   id: true,
   employeeId: true,
@@ -156,6 +163,168 @@ export class ReportsService {
     );
 
     return [header, ...lines].join('\n');
+  }
+
+  async overview(query: WorkTimeReportQueryDto) {
+    const today = formatUtcDate(new Date());
+    const date = query.from ?? query.to ?? today;
+    const report = await this.workTime({ ...query, from: date, to: date });
+    const devices = await this.prisma.device.findMany({
+      where: { status: { not: 'REVOKED' } },
+      select: {
+        id: true,
+        employeeId: true,
+        deviceName: true,
+        hostname: true,
+        currentActivityStatus: true,
+        lastSeenAt: true,
+        status: true,
+      },
+      orderBy: { lastSeenAt: 'desc' },
+    });
+
+    const devicesByEmployee = new Map<string, typeof devices>();
+    for (const device of devices) {
+      const list = devicesByEmployee.get(device.employeeId) ?? [];
+      list.push(device);
+      devicesByEmployee.set(device.employeeId, list);
+    }
+
+    const employees = report.rows.map((row) => {
+      const assigned = devicesByEmployee.get(row.employeeId) ?? [];
+      const device = this.pickLiveDevice(assigned);
+      const activityStatus = device?.currentActivityStatus ?? 'OFFLINE';
+      const hasDevice = assigned.length > 0;
+      return {
+        id: row.employee.id,
+        employeeId: row.employee.employeeId,
+        name: row.employee.name,
+        email: row.employee.email,
+        department: row.employee.department,
+        designation: row.employee.designation,
+        status: row.employee.status,
+        activityStatus,
+        hasDevice,
+        deviceId: device?.id ?? null,
+        deviceName: device?.deviceName ?? null,
+        lastSeenAt: device?.lastSeenAt ?? null,
+        firstActiveAt: row.firstActiveAt,
+        lastActivityAt: row.lastActivityAt,
+        activeSeconds: row.activeSeconds,
+        idleSeconds: row.idleSeconds,
+        lockedSeconds: row.lockedSeconds,
+        totalTrackedSeconds: row.totalTrackedSeconds,
+      };
+    });
+
+    const counts = employees.reduce(
+      (acc, employee) => {
+        if (!employee.hasDevice) {
+          acc.noDevice += 1;
+        } else if (employee.activityStatus === 'ACTIVE') {
+          acc.workingNow += 1;
+        } else if (employee.activityStatus === 'IDLE') {
+          acc.idle += 1;
+        } else if (employee.activityStatus === 'LOCKED') {
+          acc.locked += 1;
+        } else {
+          acc.offline += 1;
+        }
+        acc.totalEmployees += 1;
+        return acc;
+      },
+      {
+        workingNow: 0,
+        idle: 0,
+        locked: 0,
+        offline: 0,
+        noDevice: 0,
+        totalEmployees: 0,
+      },
+    );
+
+    return {
+      date,
+      generatedAt: new Date().toISOString(),
+      counts,
+      totals: report.totals,
+      employees,
+    };
+  }
+
+  async timeline(query: WorkTimeReportQueryDto) {
+    const today = formatUtcDate(new Date());
+    const date = query.from ?? query.to ?? today;
+    const from = parseUtcDate(date);
+    await this.refreshSummaries(from, from);
+
+    const employeeWhere: Prisma.EmployeeWhereInput = {};
+    if (query.employeeId) {
+      employeeWhere.OR = [
+        { id: query.employeeId },
+        { employeeId: query.employeeId },
+      ];
+    }
+    if (query.department) {
+      employeeWhere.department = {
+        equals: query.department,
+        mode: 'insensitive',
+      };
+    }
+
+    const employees = await this.prisma.employee.findMany({
+      where: employeeWhere,
+      select: EMPLOYEE_SELECT,
+      orderBy: { employeeId: 'asc' },
+    });
+
+    const rows = await Promise.all(
+      employees.map(async (employee) => {
+        const days = await this.dailySummary.segmentsForEmployee(
+          employee.id,
+          from,
+          from,
+        );
+        const day = days.find((item) => item.date === date);
+        return {
+          employee,
+          segments: (day?.segments ?? []).map((segment) => ({
+            start: segment.start.toISOString(),
+            end: segment.end.toISOString(),
+            status: segment.status,
+          })),
+        };
+      }),
+    );
+
+    return {
+      date,
+      dayStart: from.toISOString(),
+      dayEnd: addUtcDays(from, 1).toISOString(),
+      rows,
+    };
+  }
+
+  private pickLiveDevice<
+    T extends {
+      currentActivityStatus: string;
+      lastSeenAt: Date | null;
+    },
+  >(devices: T[]): T | null {
+    if (devices.length === 0) {
+      return null;
+    }
+    return [...devices].sort((left, right) => {
+      const rank =
+        (ACTIVITY_RANK[right.currentActivityStatus] ?? 0) -
+        (ACTIVITY_RANK[left.currentActivityStatus] ?? 0);
+      if (rank !== 0) {
+        return rank;
+      }
+      return (
+        (right.lastSeenAt?.getTime() ?? 0) - (left.lastSeenAt?.getTime() ?? 0)
+      );
+    })[0];
   }
 
   private async refreshSummaries(from: Date, to: Date): Promise<void> {

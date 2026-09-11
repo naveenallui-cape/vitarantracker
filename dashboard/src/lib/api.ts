@@ -75,3 +75,13 @@ export function formatTimestamp(value: string | null | undefined) {
   }
   return new Date(value).toLocaleString();
 }
+
+export function formatTime(value: string | Date | null | undefined) {
+  if (!value) {
+    return "—";
+  }
+  return new Date(value).toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}

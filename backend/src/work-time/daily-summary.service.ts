@@ -26,6 +26,73 @@ export class DailySummaryService {
     tx?: Prisma.TransactionClient,
   ): Promise<void> {
     const client = tx ?? this.prisma;
+    const { timeline, deviceLastSeen } = await this.loadTimeline(
+      employeeId,
+      from,
+      to,
+      client,
+    );
+
+    const summaries = this.workTime.calculate(timeline, {
+      from: startOfUtcDay(from),
+      to: startOfUtcDay(to),
+      deviceLastSeen,
+      asOf: new Date(),
+      offlineGraceMs: 3 * 60 * 1000,
+    });
+
+    for (const summary of summaries) {
+      await client.dailyWorkSummary.upsert({
+        where: {
+          employeeId_date: {
+            employeeId,
+            date: parseUtcDate(summary.date),
+          },
+        },
+        create: {
+          employeeId,
+          date: parseUtcDate(summary.date),
+          firstActiveAt: summary.firstActiveAt,
+          lastActivityAt: summary.lastActivityAt,
+          activeSeconds: summary.activeSeconds,
+          idleSeconds: summary.idleSeconds,
+          lockedSeconds: summary.lockedSeconds,
+          totalTrackedSeconds: summary.totalTrackedSeconds,
+        },
+        update: {
+          firstActiveAt: summary.firstActiveAt,
+          lastActivityAt: summary.lastActivityAt,
+          activeSeconds: summary.activeSeconds,
+          idleSeconds: summary.idleSeconds,
+          lockedSeconds: summary.lockedSeconds,
+          totalTrackedSeconds: summary.totalTrackedSeconds,
+        },
+      });
+    }
+  }
+
+  async segmentsForEmployee(employeeId: string, from: Date, to: Date) {
+    const { timeline, deviceLastSeen } = await this.loadTimeline(
+      employeeId,
+      from,
+      to,
+    );
+    return this.workTime.segments(timeline, {
+      from: startOfUtcDay(from),
+      to: startOfUtcDay(to),
+      deviceLastSeen,
+      asOf: new Date(),
+      offlineGraceMs: 3 * 60 * 1000,
+    });
+  }
+
+  private async loadTimeline(
+    employeeId: string,
+    from: Date,
+    to: Date,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = tx ?? this.prisma;
     const lookback = addUtcDays(startOfUtcDay(from), -1);
 
     const [prior, events, devices] = await Promise.all([
@@ -63,45 +130,12 @@ export class DailySummaryService {
       })),
     ];
 
-    const deviceLastSeen = Object.fromEntries(
-      devices.map((device) => [device.id, device.lastSeenAt]),
-    );
-    const summaries = this.workTime.calculate(timeline, {
-      from: startOfUtcDay(from),
-      to: startOfUtcDay(to),
-      deviceLastSeen,
-      asOf: new Date(),
-      offlineGraceMs: 3 * 60 * 1000,
-    });
-
-    for (const summary of summaries) {
-      await client.dailyWorkSummary.upsert({
-        where: {
-          employeeId_date: {
-            employeeId,
-            date: parseUtcDate(summary.date),
-          },
-        },
-        create: {
-          employeeId,
-          date: parseUtcDate(summary.date),
-          firstActiveAt: summary.firstActiveAt,
-          lastActivityAt: summary.lastActivityAt,
-          activeSeconds: summary.activeSeconds,
-          idleSeconds: summary.idleSeconds,
-          lockedSeconds: summary.lockedSeconds,
-          totalTrackedSeconds: summary.totalTrackedSeconds,
-        },
-        update: {
-          firstActiveAt: summary.firstActiveAt,
-          lastActivityAt: summary.lastActivityAt,
-          activeSeconds: summary.activeSeconds,
-          idleSeconds: summary.idleSeconds,
-          lockedSeconds: summary.lockedSeconds,
-          totalTrackedSeconds: summary.totalTrackedSeconds,
-        },
-      });
-    }
+    return {
+      timeline,
+      deviceLastSeen: Object.fromEntries(
+        devices.map((device) => [device.id, device.lastSeenAt]),
+      ),
+    };
   }
 
   async getEmployeeSummaries(idOrCode: string, query: WorkTimeReportQueryDto) {

@@ -17,7 +17,6 @@ type TrackerApi = {
     registrationCode: string;
     deviceName: string;
   }) => Promise<{ success: boolean; deviceId: string }>;
-  unregister: () => Promise<{ success: boolean }>;
   onStatus: (listener: (status: string) => void) => void;
 };
 

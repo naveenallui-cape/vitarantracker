@@ -41,6 +41,11 @@ export class DeviceAuthGuard implements CanActivate {
     );
     const device = await this.prisma.device.findUnique({
       where: { deviceTokenHash: tokenHash },
+      include: {
+        employee: {
+          select: { name: true, employeeId: true, department: true },
+        },
+      },
     });
 
     if (!device) {
@@ -62,6 +67,9 @@ export class DeviceAuthGuard implements CanActivate {
     request.device = {
       id: device.id,
       employeeId: device.employeeId,
+      employeeName: device.employee.name,
+      employeeCode: device.employee.employeeId,
+      department: device.employee.department,
       deviceName: device.deviceName,
       hostname: device.hostname,
       operatingSystem: device.operatingSystem,

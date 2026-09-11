@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 const NAV = [
-  { href: "/", label: "Live activity" },
+  { href: "/", label: "Company" },
   { href: "/employees", label: "Employees" },
   { href: "/devices", label: "Devices" },
-  { href: "/reports", label: "Daily work" },
+  { href: "/reports", label: "Working hours" },
+  { href: "/timeline", label: "Day timeline" },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -29,7 +30,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </p>
           <h1 className="mt-1 text-xl font-semibold">Tracker</h1>
           <p className="mt-3 text-sm text-[#c5d6cc]">
-            Company-owned Windows laptops. Activity state only.
+            See every employee’s keyboard and mouse activity on company Windows
+            laptops.
           </p>
         </div>
         <nav className="px-3 pb-8">

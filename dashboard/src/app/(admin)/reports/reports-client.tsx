@@ -63,14 +63,13 @@ export function ReportsClient({
 
   return (
     <>
-      <h1 className="text-3xl font-semibold">Daily work</h1>
+      <h1 className="text-3xl font-semibold">Working hours</h1>
       <p className="mt-2 mb-6 max-w-3xl text-sm text-[#5d6b63]">
-        Admin view of every employee, every day. Open this page or click
-        Refresh to recompute hours from the latest tracker heartbeats. Active
-        time is keyboard and mouse use on the company Windows laptop (Windows
-        last-input time). This does not record which keys were pressed, typed
-        text, mouse position, screenshots, or websites. Hours stay at 0 until a
-        tracker is registered and running.
+        Company working hours from keyboard and mouse on each employee’s
+        Windows laptop. Active time is input in the last session; idle is no
+        keyboard or mouse for 5+ minutes; locked is the Windows lock screen.
+        Keys, typed text, screenshots, and websites are never recorded. Click
+        Refresh after trackers have been running.
       </p>
       <form
         onSubmit={(event) => void load(event)}
@@ -106,7 +105,7 @@ export function ReportsClient({
         />
         <div className="flex gap-2 self-end">
           <button className="rounded-lg bg-[#1f6f4a] px-4 py-2 text-sm text-white">
-            Refresh daily work
+            Refresh working hours
           </button>
           <button
             type="button"

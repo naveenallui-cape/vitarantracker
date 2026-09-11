@@ -74,23 +74,45 @@ export class EmployeesService {
     const sortBy = query.sortBy ?? 'createdAt';
     const sortOrder = query.sortOrder ?? 'desc';
 
-    const [data, total] = await this.prisma.$transaction([
+    const [rows, total] = await this.prisma.$transaction([
       this.prisma.employee.findMany({
         where,
         skip,
         take: limit,
         orderBy: { [sortBy]: sortOrder },
+        include: {
+          _count: {
+            select: {
+              devices: { where: { status: { not: 'REVOKED' } } },
+            },
+          },
+        },
       }),
       this.prisma.employee.count({ where }),
     ]);
 
-    return paginate(data, total, page, limit);
+    return paginate(
+      rows.map(({ _count, ...employee }) => ({
+        ...employee,
+        hasLinkedDevice: _count.devices > 0,
+      })),
+      total,
+      page,
+      limit,
+    );
   }
 
   async findByIdOrCode(idOrCode: string) {
     const employee = await this.prisma.employee.findFirst({
       where: {
         OR: [{ id: idOrCode }, { employeeId: idOrCode }],
+      },
+      include: {
+        _count: {
+          select: {
+            devices: { where: { status: { not: 'REVOKED' } } },
+          },
+        },
       },
     });
 
@@ -102,7 +124,8 @@ export class EmployeesService {
       );
     }
 
-    return employee;
+    const { _count, ...rest } = employee;
+    return { ...rest, hasLinkedDevice: _count.devices > 0 };
   }
 
   async update(id: string, dto: UpdateEmployeeDto, adminId: string) {

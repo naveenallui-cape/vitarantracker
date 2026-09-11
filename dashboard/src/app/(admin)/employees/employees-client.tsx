@@ -91,8 +91,8 @@ export function EmployeesClient({
         <div>
           <h1 className="text-3xl font-semibold">Employees</h1>
           <p className="mt-2 text-sm text-[#5d6b63]">
-            Register company laptops against an employee, not personal
-            accounts.
+            Register a company laptop once per employee. A new code cannot be
+            generated until admin unlinks the connected device.
           </p>
         </div>
         <button
@@ -148,13 +148,14 @@ export function EmployeesClient({
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Department</th>
               <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Laptop</th>
               <th className="px-4 py-3">Code</th>
             </tr>
           </thead>
           <tbody>
             {employees.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-sm text-[#5d6b63]">
+                <td colSpan={6} className="px-4 py-8 text-sm text-[#5d6b63]">
                   No employees yet. Use Add employee to create the first record.
                 </td>
               </tr>
@@ -175,15 +176,22 @@ export function EmployeesClient({
                     <StatusBadge status={employee.status} />
                   </td>
                   <td className="px-4 py-3">
+                    {employee.hasLinkedDevice ? "Connected" : "Not linked"}
+                  </td>
+                  <td className="px-4 py-3">
                     <button
                       type="button"
-                      disabled={generatingId === employee.id}
+                      disabled={
+                        generatingId === employee.id || employee.hasLinkedDevice
+                      }
                       onClick={() => void generateCode(employee)}
                       className="rounded-lg bg-[#1f6f4a] px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
                     >
-                      {generatingId === employee.id
-                        ? "Generating..."
-                        : "Generate code"}
+                      {employee.hasLinkedDevice
+                        ? "Unlink first"
+                        : generatingId === employee.id
+                          ? "Generating..."
+                          : "Generate code"}
                     </button>
                   </td>
                 </tr>

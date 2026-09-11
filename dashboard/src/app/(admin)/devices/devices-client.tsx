@@ -96,7 +96,7 @@ export function DevicesClient({
                     <StatusBadge status={device.status} />
                   </td>
                   <td className="px-4 py-3">
-                    <StatusBadge status={device.currentActivityStatus} />
+                    <StatusBadge kind="activity" status={device.currentActivityStatus} />
                   </td>
                   <td className="px-4 py-3">{formatTimestamp(device.lastSeenAt)}</td>
                 </tr>

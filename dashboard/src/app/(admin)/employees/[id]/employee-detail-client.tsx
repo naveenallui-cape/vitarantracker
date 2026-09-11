@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { StatusBadge } from "@/components/status-badge";
-import { api, formatDuration, formatTimestamp, listFrom } from "@/lib/api";
+import { api, formatDuration, formatTime, formatTimestamp, listFrom } from "@/lib/api";
 import type { Device, Employee } from "@/lib/types";
 
 export type WorkTime = {
@@ -62,6 +62,8 @@ export function EmployeeDetailClient({
     setWork(nextWork);
   }
 
+  const linkedDevice = devices.find((device) => device.status !== "REVOKED");
+
   async function generateCode() {
     setError("");
     const result = await api<{ code: string; expiresAt: string }>(
@@ -69,6 +71,13 @@ export function EmployeeDetailClient({
       { method: "POST", body: "{}" },
     );
     setCode(result);
+  }
+
+  async function unlinkDevice(id: string) {
+    setError("");
+    await api(`/admin/devices/${id}/revoke`, { method: "POST" });
+    setCode(null);
+    await load();
   }
 
   async function toggleStatus() {
@@ -113,10 +122,11 @@ export function EmployeeDetailClient({
         </div>
         <div className="flex gap-2">
           <button
+            disabled={Boolean(linkedDevice)}
             onClick={() => void generateCode().catch((reason: Error) => setError(reason.message))}
-            className="rounded-lg bg-[#1f6f4a] px-4 py-2 text-sm text-white"
+            className="rounded-lg bg-[#1f6f4a] px-4 py-2 text-sm text-white disabled:opacity-60"
           >
-            Generate registration code
+            {linkedDevice ? "Unlink laptop first" : "Generate registration code"}
           </button>
           <button
             onClick={() => void toggleStatus().catch((reason: Error) => setError(reason.message))}
@@ -157,6 +167,7 @@ export function EmployeeDetailClient({
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Activity</th>
               <th className="px-4 py-3">Last seen</th>
+              <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -172,18 +183,33 @@ export function EmployeeDetailClient({
                   <StatusBadge status={device.status} />
                 </td>
                 <td className="px-4 py-3">
-                  <StatusBadge status={device.currentActivityStatus} />
+                  <StatusBadge kind="activity" status={device.currentActivityStatus} />
                 </td>
                 <td className="px-4 py-3">{formatTimestamp(device.lastSeenAt)}</td>
+                <td className="px-4 py-3">
+                  {device.status !== "REVOKED" ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void unlinkDevice(device.id).catch((reason: Error) =>
+                          setError(reason.message),
+                        )
+                      }
+                      className="text-xs text-[#9a3b32]"
+                    >
+                      Unlink
+                    </button>
+                  ) : null}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <h2 className="mb-3 text-lg font-semibold">Work time</h2>
+      <h2 className="mb-3 text-lg font-semibold">Working hours</h2>
       <p className="mb-3 text-sm text-[#5d6b63]">
-        Computer activity from keyboard and mouse on the company laptop, not
-        proof of continuous work. Active{" "}
+        Keyboard and mouse time on the company laptop, not proof of continuous
+        work. Keyboard/mouse{" "}
         {formatDuration(work?.totals.activeSeconds ?? 0)} · Idle{" "}
         {formatDuration(work?.totals.idleSeconds ?? 0)} · Locked{" "}
         {formatDuration(work?.totals.lockedSeconds ?? 0)}
@@ -193,6 +219,8 @@ export function EmployeeDetailClient({
           <thead className="border-b border-[#d9d4c8] text-xs uppercase text-[#5d6b63]">
             <tr>
               <th className="px-4 py-3">Date</th>
+              <th className="px-4 py-3">First in</th>
+              <th className="px-4 py-3">Last activity</th>
               <th className="px-4 py-3">Keyboard/mouse</th>
               <th className="px-4 py-3">Idle</th>
               <th className="px-4 py-3">Locked</th>
@@ -202,6 +230,8 @@ export function EmployeeDetailClient({
             {work?.summaries.map((row) => (
               <tr key={row.date} className="border-t border-[#efeae0]">
                 <td className="px-4 py-3">{row.date.slice(0, 10)}</td>
+                <td className="px-4 py-3">{formatTime(row.firstActiveAt)}</td>
+                <td className="px-4 py-3">{formatTime(row.lastActivityAt)}</td>
                 <td className="px-4 py-3">{formatDuration(row.activeSeconds)}</td>
                 <td className="px-4 py-3">{formatDuration(row.idleSeconds)}</td>
                 <td className="px-4 py-3">{formatDuration(row.lockedSeconds)}</td>

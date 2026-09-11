@@ -6,6 +6,11 @@ import { enqueue, loadQueue, removeFromQueue } from "./queue";
 
 const AGENT_VERSION = "1.0.0";
 
+export type PostResult = {
+  ok: boolean;
+  unlinked: boolean;
+};
+
 function joinUrl(base: string, path: string) {
   return `${base.replace(/\/$/, "")}${path}`;
 }
@@ -50,18 +55,18 @@ export async function sendEvent(
   credentials: DeviceCredentials,
   eventType: ActivityEventType,
   occurredAt = new Date(),
-) {
+): Promise<PostResult> {
   const event = {
     eventId: randomUUID(),
     eventType,
     occurredAt: occurredAt.toISOString(),
   };
 
-  const ok = await postJson(credentials, "/api/tracker/events", event);
-  if (!ok) {
+  const result = await postJson(credentials, "/api/tracker/events", event);
+  if (!result.ok && !result.unlinked) {
     enqueue(event);
   }
-  return ok;
+  return result;
 }
 
 export async function sendHeartbeat(
@@ -77,18 +82,22 @@ export async function sendHeartbeat(
 
 export async function flushQueue(credentials: DeviceCredentials) {
   for (const event of loadQueue()) {
-    const ok = await postJson(credentials, "/api/tracker/events", event);
-    if (ok) {
+    const result = await postJson(credentials, "/api/tracker/events", event);
+    if (result.ok) {
       removeFromQueue(event.eventId);
     }
+    if (result.unlinked) {
+      return result;
+    }
   }
+  return { ok: true, unlinked: false };
 }
 
 async function postJson(
   credentials: DeviceCredentials,
   path: string,
   payload: Record<string, string>,
-) {
+): Promise<PostResult> {
   try {
     const response = await fetch(joinUrl(credentials.backendUrl, path), {
       method: "POST",
@@ -98,8 +107,22 @@ async function postJson(
       },
       body: JSON.stringify(payload),
     });
-    return response.ok || response.status === 409;
+    if (response.status === 401) {
+      const body = (await response.json().catch(() => ({}))) as {
+        code?: string;
+      };
+      if (
+        body.code === "DEVICE_REVOKED" ||
+        body.code === "DEVICE_TOKEN_INVALID"
+      ) {
+        return { ok: false, unlinked: true };
+      }
+    }
+    return {
+      ok: response.ok || response.status === 409,
+      unlinked: false,
+    };
   } catch {
-    return false;
+    return { ok: false, unlinked: false };
   }
 }

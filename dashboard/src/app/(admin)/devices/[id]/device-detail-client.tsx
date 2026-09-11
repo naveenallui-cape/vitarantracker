@@ -57,7 +57,7 @@ export function DeviceDetailClient({
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <StatusBadge status={device.status} />
-        <StatusBadge status={device.currentActivityStatus} />
+        <StatusBadge kind="activity" status={device.currentActivityStatus} />
       </div>
       {error ? <p className="mt-4 text-sm text-[#9a3b32]">{error}</p> : null}
       {code ? (
@@ -91,7 +91,7 @@ export function DeviceDetailClient({
             onClick={() => void revoke().catch((reason: Error) => setError(reason.message))}
             className="rounded-lg border border-[#9a3b32] px-4 py-2 text-sm text-[#9a3b32]"
           >
-            Revoke
+            Unlink device
           </button>
           <button
             onClick={() => void replace().catch((reason: Error) => setError(reason.message))}

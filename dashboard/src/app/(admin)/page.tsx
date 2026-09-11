@@ -1,29 +1,31 @@
-import { LiveClient } from "./live-client";
-import { listFrom } from "@/lib/api";
+import { OverviewClient } from "./overview-client";
 import { serverApi } from "@/lib/server-api";
-import type { Device, LiveActivity, Paginated } from "@/lib/types";
+import { todayInWorkTimezone } from "@/lib/work-day";
+import type { CompanyOverview, LiveActivity } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function LivePage() {
-  let devices: Device[] = [];
+export default async function CompanyPage() {
+  const date = todayInWorkTimezone();
+  let overview: CompanyOverview | null = null;
   let events: LiveActivity[] = [];
   let error = "";
 
   try {
-    const [deviceResult, liveEvents] = await Promise.all([
-      serverApi<Paginated<Device>>("/admin/devices?limit=100"),
+    const [nextOverview, liveEvents] = await Promise.all([
+      serverApi<CompanyOverview>(`/admin/reports/overview?from=${date}&to=${date}`),
       serverApi<LiveActivity[]>("/admin/devices/recent-activity?limit=40"),
     ]);
-    devices = listFrom<Device>(deviceResult);
+    overview = nextOverview;
     events = Array.isArray(liveEvents) ? liveEvents : [];
   } catch (reason) {
-    error = reason instanceof Error ? reason.message : "Could not load activity";
+    error =
+      reason instanceof Error ? reason.message : "Could not load company activity";
   }
 
   return (
-    <LiveClient
-      initialDevices={devices}
+    <OverviewClient
+      initialOverview={overview}
       initialEvents={events}
       initialError={error}
     />

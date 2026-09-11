@@ -87,6 +87,9 @@ export class ActivityEventsService {
 
     this.trackerGateway.emitActivityUpdated({
       employeeId: device.employeeId,
+      employeeName: device.employeeName,
+      employeeCode: device.employeeCode,
+      department: device.department,
       deviceId: device.id,
       status: dto.eventType,
       timestamp: occurredAt.toISOString(),

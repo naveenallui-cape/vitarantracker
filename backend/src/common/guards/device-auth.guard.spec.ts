@@ -32,6 +32,11 @@ describe('DeviceAuthGuard', () => {
     ).rejects.toBeInstanceOf(UnauthorizedException);
     expect(prisma.device.findUnique).toHaveBeenCalledWith({
       where: { deviceTokenHash: hashWithSecret('not-a-real-token', secret) },
+      include: {
+        employee: {
+          select: { name: true, employeeId: true, department: true },
+        },
+      },
     });
   });
 

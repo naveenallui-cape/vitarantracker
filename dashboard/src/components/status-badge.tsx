@@ -10,16 +10,27 @@ const STYLES: Record<string, string> = {
   INACTIVE: "bg-[#eceff3] text-[#44515a]",
 };
 
+const ACTIVITY_LABELS: Record<string, string> = {
+  ACTIVE: "Keyboard/mouse",
+  IDLE: "Idle",
+  LOCKED: "Locked",
+  UNLOCKED: "Keyboard/mouse",
+  OFFLINE: "Offline",
+};
+
 export function StatusBadge({
   status,
+  kind,
 }: {
   status: ActivityStatus | DeviceStatus | EmployeeStatus | "UNLOCKED";
+  kind?: "activity";
 }) {
+  const label = kind === "activity" ? (ACTIVITY_LABELS[status] ?? status) : status;
   return (
     <span
       className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${STYLES[status] ?? "bg-slate-100 text-slate-700"}`}
     >
-      {status}
+      {label}
     </span>
   );
 }

@@ -1,8 +1,7 @@
 const registerForm = document.getElementById("register");
-const registeredView = document.getElementById("registered");
+const backgroundNote = document.getElementById("background");
 const errorEl = document.getElementById("error");
 const noticeEl = document.getElementById("notice");
-const statusEl = document.getElementById("status");
 
 async function render() {
   const state = await window.vitarantracker.getState();
@@ -13,14 +12,10 @@ async function render() {
   }
   if (state.registered) {
     registerForm.hidden = true;
-    registeredView.hidden = false;
-    document.getElementById("employeeId").textContent = state.employeeId;
-    document.getElementById("deviceName").textContent = state.deviceName;
-    document.getElementById("hostname").textContent = state.hostname;
-    statusEl.textContent = state.status;
+    backgroundNote.hidden = false;
   } else {
     registerForm.hidden = false;
-    registeredView.hidden = true;
+    backgroundNote.hidden = true;
     registerForm.backendUrl.value = state.backendUrl;
     registerForm.deviceName.placeholder = state.hostname;
   }
@@ -39,17 +34,13 @@ registerForm.addEventListener("submit", async (event) => {
     });
     await render();
   } catch (error) {
-    errorEl.textContent = error instanceof Error ? error.message : "Registration failed";
+    errorEl.textContent =
+      error instanceof Error ? error.message : "Registration failed";
   }
 });
 
-document.getElementById("unregister").addEventListener("click", async () => {
-  await window.vitarantracker.unregister();
-  await render();
-});
-
-window.vitarantracker.onStatus((status) => {
-  statusEl.textContent = status;
+window.vitarantracker.onStatus(() => {
+  void render();
 });
 
 void render();

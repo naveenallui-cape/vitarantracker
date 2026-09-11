@@ -12,6 +12,9 @@ describe('DeviceRegistrationService', () => {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
     },
+    device: {
+      findFirst: jest.fn(),
+    },
     $transaction: jest.fn(),
   };
   const config = {
@@ -33,10 +36,12 @@ describe('DeviceRegistrationService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     config.get.mockReturnValue(secret);
+    prisma.device.findFirst.mockResolvedValue(null);
   });
 
   it('generates a registration code and never returns the stored hash', async () => {
     prisma.employee.findFirst.mockResolvedValue(employee);
+    prisma.device.findFirst.mockResolvedValue(null);
     prisma.$transaction.mockImplementation(
       async (fn: (tx: unknown) => Promise<void>) => {
         await fn({
@@ -57,6 +62,7 @@ describe('DeviceRegistrationService', () => {
 
   it('registers a Windows device atomically and returns the token once', async () => {
     prisma.employee.findUnique.mockResolvedValue(employee);
+    prisma.device.findFirst.mockResolvedValue(null);
     prisma.$transaction.mockImplementation(
       async (fn: (tx: unknown) => Promise<unknown>) => {
         const tx = {
@@ -69,6 +75,7 @@ describe('DeviceRegistrationService', () => {
             update: jest.fn(),
           },
           device: {
+            findFirst: jest.fn().mockResolvedValue(null),
             create: jest.fn().mockResolvedValue({
               id: 'device-1',
               deviceName: 'VITARAN-LAPTOP-001',
@@ -108,6 +115,7 @@ describe('DeviceRegistrationService', () => {
               expiresAt: new Date(Date.now() - 1000),
             }),
           },
+          device: { findFirst: jest.fn().mockResolvedValue(null) },
         });
       },
     );
@@ -135,6 +143,7 @@ describe('DeviceRegistrationService', () => {
               expiresAt: new Date(Date.now() + 10000),
             }),
           },
+          device: { findFirst: jest.fn().mockResolvedValue(null) },
         });
       },
     );
@@ -158,6 +167,7 @@ describe('DeviceRegistrationService', () => {
           deviceRegistrationCode: {
             findFirst: jest.fn().mockResolvedValue(null),
           },
+          device: { findFirst: jest.fn().mockResolvedValue(null) },
         });
       },
     );
@@ -177,5 +187,15 @@ describe('DeviceRegistrationService', () => {
     const hash = hashWithSecret(normalizeRegistrationCode('AB7K-92PX'), secret);
     expect(hash).toHaveLength(64);
     expect(hash).not.toContain('AB7K-92PX');
+  });
+
+  it('does not generate a registration code while a laptop is still linked', async () => {
+    prisma.employee.findFirst.mockResolvedValue(employee);
+    prisma.device.findFirst.mockResolvedValue({ id: 'device-1' });
+
+    await expect(service.generateCode('EMP001', 'admin-1')).rejects.toMatchObject(
+      { code: 'DEVICE_ALREADY_LINKED' },
+    );
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });

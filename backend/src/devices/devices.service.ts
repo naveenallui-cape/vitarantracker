@@ -99,11 +99,21 @@ export class DevicesService {
         deviceId: true,
         eventType: true,
         occurredAt: true,
+        employee: {
+          select: {
+            name: true,
+            employeeId: true,
+            department: true,
+          },
+        },
       },
     });
 
     return events.map((event) => ({
       employeeId: event.employeeId,
+      employeeName: event.employee.name,
+      employeeCode: event.employee.employeeId,
+      department: event.employee.department,
       deviceId: event.deviceId,
       status: event.eventType,
       timestamp: event.occurredAt.toISOString(),
