@@ -1,4 +1,4 @@
-import { ValidationPipe } from '@nestjs/common';
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
@@ -25,7 +25,12 @@ export async function createNestApp(
   const origins = config.get('corsOrigin', { infer: true });
 
   app.use(helmet());
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api', {
+    exclude: [
+      { path: '/', method: RequestMethod.GET },
+      { path: '', method: RequestMethod.GET },
+    ],
+  });
   app.enableCors({
     origin: origins.length > 0 ? origins : true,
     credentials: true,

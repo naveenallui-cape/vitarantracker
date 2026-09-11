@@ -1,6 +1,24 @@
-import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpStatus,
+  Res,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import { HealthService } from './health.service';
+
+@Controller()
+export class RootController {
+  @Get()
+  info() {
+    return {
+      name: 'Vitarantracker API',
+      status: 'ok',
+      health: '/api/health',
+      login: '/api/auth/login',
+    };
+  }
+}
 
 @Controller('health')
 export class HealthController {

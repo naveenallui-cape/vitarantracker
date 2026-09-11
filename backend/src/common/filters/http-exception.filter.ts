@@ -23,8 +23,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
       const payload = exception.getResponse();
       const body =
         typeof payload === 'string'
-          ? { success: false, message: payload, code: ErrorCodes.UNAUTHORIZED }
-          : this.normalizeHttpException(payload);
+          ? {
+              success: false as const,
+              message: payload,
+              code: this.codeForStatus(status),
+            }
+          : this.normalizeHttpException(payload, status);
 
       response.status(status).json(body);
       return;
@@ -42,7 +46,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
     });
   }
 
-  private normalizeHttpException(payload: object): {
+  private normalizeHttpException(
+    payload: object,
+    status: number,
+  ): {
     success: false;
     message: string;
     code: string;
@@ -65,7 +72,26 @@ export class HttpExceptionFilter implements ExceptionFilter {
         record.code ??
         (Array.isArray(record.message)
           ? ErrorCodes.VALIDATION_ERROR
-          : ErrorCodes.UNAUTHORIZED),
+          : this.codeForStatus(status)),
     };
+  }
+
+  private codeForStatus(status: number): string {
+    if (status === HttpStatus.BAD_REQUEST) {
+      return ErrorCodes.VALIDATION_ERROR;
+    }
+    if (status === HttpStatus.UNAUTHORIZED) {
+      return ErrorCodes.UNAUTHORIZED;
+    }
+    if (status === HttpStatus.FORBIDDEN) {
+      return ErrorCodes.FORBIDDEN;
+    }
+    if (status === HttpStatus.NOT_FOUND) {
+      return 'NOT_FOUND';
+    }
+    if (status === HttpStatus.CONFLICT) {
+      return ErrorCodes.CONFLICT;
+    }
+    return 'REQUEST_FAILED';
   }
 }
