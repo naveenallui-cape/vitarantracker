@@ -13,8 +13,8 @@ export function validateEnvironment(): void {
   requireEnv('JWT_SECRET', 32);
   requireEnv('DEVICE_TOKEN_SECRET', 32);
 
-  const port = process.env.PORT ?? '4000';
-  if (!/^\d+$/.test(port) || Number(port) < 1 || Number(port) > 65535) {
+  const port = process.env.PORT;
+  if (port && (!/^\d+$/.test(port) || Number(port) < 1 || Number(port) > 65535)) {
     throw new Error('PORT must be a valid TCP port.');
   }
 }
