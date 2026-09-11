@@ -1,5 +1,4 @@
 import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import {
   CurrentAdmin,
@@ -24,7 +23,6 @@ export class DeviceRegistrationController {
   }
 
   @Post('devices/register')
-  @Throttle({ default: { limit: 10, ttl: 60000 } })
   register(@Body() dto: RegisterDeviceDto) {
     return this.deviceRegistrationService.register(dto);
   }

@@ -1,5 +1,4 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
 import { DeviceAuthGuard } from '../common/guards/device-auth.guard';
 import {
   CurrentDevice,
@@ -12,7 +11,6 @@ import { HeartbeatDto } from '../heartbeats/dto/heartbeat.dto';
 
 @Controller('tracker')
 @UseGuards(DeviceAuthGuard)
-@Throttle({ default: { limit: 120, ttl: 60000 } })
 export class TrackerController {
   constructor(
     private readonly activityEventsService: ActivityEventsService,

@@ -1,8 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import configuration from './config/configuration';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
@@ -26,9 +24,6 @@ import { HealthModule } from './health/health.module';
       envFilePath: ['.env'],
       load: [configuration],
     }),
-    ThrottlerModule.forRoot({
-      throttlers: [{ name: 'default', ttl: 60000, limit: 100 }],
-    }),
     ScheduleModule.forRoot(),
     PrismaModule,
     AuditLogsModule,
@@ -43,12 +38,6 @@ import { HealthModule } from './health/health.module';
     HeartbeatsModule,
     WorkTimeModule,
     ReportsModule,
-  ],
-  providers: [
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    },
   ],
 })
 export class AppModule {}

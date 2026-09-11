@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
 import { ErrorCodes } from '../errors/error-codes';
 
@@ -39,11 +40,122 @@ export class HttpExceptionFilter implements ExceptionFilter {
       exception instanceof Error ? exception.stack : undefined,
     );
 
-    response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+    const mapped = this.mapUnknownError(exception);
+    response.status(mapped.status).json({
       success: false,
-      message: 'An unexpected error occurred',
-      code: 'INTERNAL_ERROR',
+      message: mapped.message,
+      code: mapped.code,
     });
+  }
+
+  private mapUnknownError(exception: unknown): {
+    status: number;
+    message: string;
+    code: string;
+  } {
+    if (
+      exception instanceof Prisma.PrismaClientInitializationError ||
+      exception instanceof Prisma.PrismaClientKnownRequestError ||
+      exception instanceof Prisma.PrismaClientRustPanicError
+    ) {
+      return this.mapPrismaError(exception);
+    }
+
+    const message =
+      exception instanceof Error ? exception.message : 'An unexpected error occurred';
+
+    if (/Can't reach database server|P1001|P1017|timed out/i.test(message)) {
+      return {
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+        message:
+          'Cannot connect to the database. Check DATABASE_URL (encode @ in the password as %40).',
+        code: ErrorCodes.DATABASE_UNAVAILABLE,
+      };
+    }
+
+    if (/does not exist|P2021/i.test(message)) {
+      return {
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+        message:
+          'Database tables are missing. Run prisma migrate deploy against this database.',
+        code: ErrorCodes.DATABASE_UNAVAILABLE,
+      };
+    }
+
+    if (/bcrypt|Cannot find module/i.test(message)) {
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Password hashing failed to load on the server.',
+        code: 'INTERNAL_ERROR',
+      };
+    }
+
+    return {
+      status: HttpStatus.INTERNAL_SERVER_ERROR,
+      message: this.redact(message) || 'An unexpected error occurred',
+      code: 'INTERNAL_ERROR',
+    };
+  }
+
+  private mapPrismaError(exception: Prisma.PrismaClientKnownRequestError | Prisma.PrismaClientInitializationError | Prisma.PrismaClientRustPanicError): {
+    status: number;
+    message: string;
+    code: string;
+  } {
+    const code =
+      'code' in exception && typeof exception.code === 'string'
+        ? exception.code
+        : '';
+
+    if (code === 'P2002') {
+      return {
+        status: HttpStatus.CONFLICT,
+        message: 'A record with that unique value already exists.',
+        code: ErrorCodes.CONFLICT,
+      };
+    }
+
+    if (code === 'P2025') {
+      return {
+        status: HttpStatus.NOT_FOUND,
+        message: 'Record not found.',
+        code: 'NOT_FOUND',
+      };
+    }
+
+    if (code === 'P2021' || code === 'P2010') {
+      return {
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+        message:
+          'Database tables are missing. Run prisma migrate deploy against this database.',
+        code: ErrorCodes.DATABASE_UNAVAILABLE,
+      };
+    }
+
+    if (
+      code === 'P1001' ||
+      code === 'P1002' ||
+      code === 'P1017' ||
+      code === 'P2024' ||
+      exception instanceof Prisma.PrismaClientInitializationError
+    ) {
+      return {
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+        message:
+          'Cannot connect to the database. Check DATABASE_URL (encode @ in the password as %40).',
+        code: ErrorCodes.DATABASE_UNAVAILABLE,
+      };
+    }
+
+    return {
+      status: HttpStatus.INTERNAL_SERVER_ERROR,
+      message: this.redact(exception.message) || 'Database request failed',
+      code: ErrorCodes.DATABASE_UNAVAILABLE,
+    };
+  }
+
+  private redact(message: string): string {
+    return message.replace(/postgresql:\/\/\S+/gi, 'postgresql://***');
   }
 
   private normalizeHttpException(

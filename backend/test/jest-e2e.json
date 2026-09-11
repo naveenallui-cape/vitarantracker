@@ -16,6 +16,6 @@
     ]
   },
   "transformIgnorePatterns": [
-    "node_modules/(?!(@nestjs/config|@nestjs/jwt|@nestjs/throttler|@nestjs/schedule|@nestjs/mapped-types)/)"
+    "node_modules/(?!(@nestjs/config|@nestjs/jwt|@nestjs/schedule|@nestjs/mapped-types)/)"
   ]
 }

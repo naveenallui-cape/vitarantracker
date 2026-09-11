@@ -1,5 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 
 const PASSWORD_SALT_ROUNDS = 12;
 const REGISTRATION_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
