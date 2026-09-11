@@ -1,0 +1,42 @@
+{
+  "name": "vitarantracker-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Privacy-safe Windows laptop activity tracker for Vitarantracker",
+  "main": "dist/main.js",
+  "author": "Vitaran",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && electron .",
+    "start:dev": "npm run build && electron .",
+    "dist:win": "npm run build && electron-builder --win nsis",
+    "test": "tsc --noEmit && node --import tsx --test src/state-machine.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "electron": "^37.2.0",
+    "electron-builder": "^26.0.12",
+    "tsx": "^4.20.0",
+    "typescript": "^5.7.3"
+  },
+  "build": {
+    "appId": "com.vitaran.vitarantracker",
+    "productName": "Vitarantracker",
+    "files": [
+      "dist/**/*",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

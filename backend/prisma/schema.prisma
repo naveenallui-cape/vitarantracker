@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum OperatingSystem {
+  WINDOWS
+}
+
+enum DeviceStatus {
+  ACTIVE
+  OFFLINE
+  REVOKED
+}
+
+enum ActivityStatus {
+  ACTIVE
+  IDLE
+  LOCKED
+  OFFLINE
+}
+
+enum ActivityEventType {
+  ACTIVE
+  IDLE
+  LOCKED
+  UNLOCKED
+}
+
+enum AuditAction {
+  CREATE_EMPLOYEE
+  UPDATE_EMPLOYEE
+  GENERATE_REGISTRATION_CODE
+  REGISTER_DEVICE
+  REVOKE_DEVICE
+  REPLACE_DEVICE
+  REASSIGN_DEVICE
+  ACTIVATE_EMPLOYEE
+  DEACTIVATE_EMPLOYEE
+}
+
+model Admin {
+  id           String     @id @default(uuid())
+  name         String
+  email        String     @unique
+  passwordHash String
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  auditLogs    AuditLog[]
+}
+
+model Employee {
+  id                      String                    @id @default(uuid())
+  employeeId              String                    @unique
+  name                    String
+  email                   String
+  department              String
+  designation             String
+  status                  EmployeeStatus            @default(ACTIVE)
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  devices                 Device[]
+  activityEvents          ActivityEvent[]
+  deviceAssignments       DeviceAssignment[]
+  dailyWorkSummaries      DailyWorkSummary[]
+  deviceRegistrationCodes DeviceRegistrationCode[]
+
+  @@index([email])
+  @@index([status])
+}
+
+model Device {
+  id                    String             @id @default(uuid())
+  employeeId            String
+  employee              Employee           @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  deviceName            String
+  hostname              String
+  operatingSystem       OperatingSystem    @default(WINDOWS)
+  agentVersion          String
+  deviceTokenHash       String             @unique
+  status                DeviceStatus       @default(ACTIVE)
+  currentActivityStatus ActivityStatus     @default(OFFLINE)
+  lastSeenAt            DateTime?
+  registeredAt          DateTime           @default(now())
+  revokedAt             DateTime?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  activityEvents        ActivityEvent[]
+  deviceAssignments     DeviceAssignment[]
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([lastSeenAt])
+}
+
+model DeviceRegistrationCode {
+  id         String    @id @default(uuid())
+  employeeId String
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  codeHash   String
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([employeeId])
+  @@index([codeHash])
+}
+
+model ActivityEvent {
+  id         String            @id @default(uuid())
+  eventId    String            @unique
+  employeeId String
+  employee   Employee          @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  deviceId   String
+  device     Device            @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  eventType  ActivityEventType
+  occurredAt DateTime
+  createdAt  DateTime          @default(now())
+
+  @@index([employeeId])
+  @@index([deviceId])
+  @@index([occurredAt])
+  @@index([eventType])
+  @@index([employeeId, occurredAt])
+}
+
+model DeviceAssignment {
+  id           String    @id @default(uuid())
+  deviceId     String
+  device       Device    @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  employeeId   String
+  employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  assignedAt   DateTime  @default(now())
+  unassignedAt DateTime?
+  reason       String?
+  createdAt    DateTime  @default(now())
+
+  @@index([deviceId])
+  @@index([employeeId])
+}
+
+model DailyWorkSummary {
+  id                  String   @id @default(uuid())
+  employeeId          String
+  employee            Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  date                DateTime @db.Date
+  firstActiveAt       DateTime?
+  lastActivityAt      DateTime?
+  activeSeconds       Int      @default(0)
+  idleSeconds         Int      @default(0)
+  lockedSeconds       Int      @default(0)
+  totalTrackedSeconds Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
+  @@index([date])
+}
+
+model AuditLog {
+  id         String      @id @default(uuid())
+  action     AuditAction
+  adminId    String?
+  admin      Admin?      @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  employeeId String?
+  deviceId   String?
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+
+  @@index([createdAt])
+  @@index([adminId])
+  @@index([employeeId])
+}

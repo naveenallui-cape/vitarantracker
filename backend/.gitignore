@@ -1,0 +1,28 @@
+# compiled output
+/dist
+/node_modules
+/build
+
+# logs
+logs
+*.log
+npm-debug.log*
+
+# env files (do not commit secrets)
+.env
+
+# tests and coverage
+/coverage
+/.nyc_output
+
+# IDE
+.idea
+.vscode
+*.swp
+
+# OS
+.DS_Store
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal
