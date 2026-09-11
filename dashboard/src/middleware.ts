@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { ADMIN_TOKEN_COOKIE } from "@/lib/auth";
+import { ADMIN_TOKEN_COOKIE } from "@/lib/auth-constants";
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get(ADMIN_TOKEN_COOKIE)?.value;
