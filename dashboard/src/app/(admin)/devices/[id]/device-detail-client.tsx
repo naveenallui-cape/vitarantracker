@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { AppShell } from "@/components/app-shell";
 import { StatusBadge } from "@/components/status-badge";
 import { api, formatTimestamp, listFrom } from "@/lib/api";
 import type { Device, DeviceAssignment } from "@/lib/types";
@@ -47,15 +46,11 @@ export function DeviceDetailClient({
   }
 
   if (!device) {
-    return (
-      <AppShell>
-        <p>{error || "Device not found."}</p>
-      </AppShell>
-    );
+    return <p>{error || "Device not found."}</p>;
   }
 
   return (
-    <AppShell>
+    <>
       <h1 className="text-3xl font-semibold">{device.deviceName}</h1>
       <p className="mt-1 text-sm text-[#5d6b63]">
         {device.hostname} · Windows · agent {device.agentVersion}
@@ -153,7 +148,7 @@ export function DeviceDetailClient({
           }}
         />
       ) : null}
-    </AppShell>
+    </>
   );
 }
 

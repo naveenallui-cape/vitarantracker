@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AppShell } from "@/components/app-shell";
 import { StatusBadge } from "@/components/status-badge";
 import { api, formatTimestamp, listFrom } from "@/lib/api";
 import type { Employee, Paginated } from "@/lib/types";
+
+const EMPLOYEE_CACHE_KEY = "vitaran.employees";
 
 export function EmployeesClient({
   initialEmployees,
@@ -27,6 +28,28 @@ export function EmployeesClient({
     expiresAt: string;
   } | null>(null);
   const [generatingId, setGeneratingId] = useState("");
+
+  useEffect(() => {
+    if (initialEmployees.length > 0) {
+      setEmployees(initialEmployees);
+      sessionStorage.setItem(
+        EMPLOYEE_CACHE_KEY,
+        JSON.stringify(initialEmployees),
+      );
+      return;
+    }
+    try {
+      const cached = sessionStorage.getItem(EMPLOYEE_CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached) as Employee[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setEmployees(parsed);
+        }
+      }
+    } catch {
+      // ignore invalid cache
+    }
+  }, [initialEmployees]);
 
   async function load() {
     const query = new URLSearchParams({ limit: "100" });
@@ -63,7 +86,7 @@ export function EmployeesClient({
   }
 
   return (
-    <AppShell>
+    <>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold">Employees</h1>
@@ -178,7 +201,7 @@ export function EmployeesClient({
           }}
         />
       ) : null}
-    </AppShell>
+    </>
   );
 }
 

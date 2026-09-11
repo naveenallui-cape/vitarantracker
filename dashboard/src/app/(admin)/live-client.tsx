@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { io } from "socket.io-client";
-import { AppShell } from "@/components/app-shell";
 import { StatusBadge } from "@/components/status-badge";
 import { formatTimestamp } from "@/lib/api";
 import type { Device, LiveActivity } from "@/lib/types";
@@ -58,7 +57,7 @@ export function LiveClient({
   }, [devices]);
 
   return (
-    <AppShell>
+    <>
       <div className="mb-8">
         <h1 className="text-3xl font-semibold tracking-tight">Live activity</h1>
         <p className="mt-2 max-w-2xl text-sm text-[#5d6b63]">
@@ -157,6 +156,6 @@ export function LiveClient({
           </div>
         </section>
       </div>
-    </AppShell>
+    </>
   );
 }

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { AppShell } from "@/components/app-shell";
 import { StatusBadge } from "@/components/status-badge";
 import { api, formatTimestamp, listFrom } from "@/lib/api";
 import type { Device, Paginated } from "@/lib/types";
@@ -28,7 +27,7 @@ export function DevicesClient({
   }
 
   return (
-    <AppShell>
+    <>
       <h1 className="text-3xl font-semibold">Windows devices</h1>
       <p className="mt-2 mb-6 text-sm text-[#5d6b63]">
         Device tokens are never displayed. Revoked laptops keep their history.
@@ -106,6 +105,6 @@ export function DevicesClient({
           </tbody>
         </table>
       </div>
-    </AppShell>
+    </>
   );
 }

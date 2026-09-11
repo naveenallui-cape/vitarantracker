@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { AppShell } from "@/components/app-shell";
 import { StatusBadge } from "@/components/status-badge";
 import { api, formatDuration, formatTimestamp, listFrom } from "@/lib/api";
 import type { Device, Employee } from "@/lib/types";
@@ -94,15 +93,11 @@ export function EmployeeDetailClient({
   }
 
   if (!employee) {
-    return (
-      <AppShell>
-        <p>{error || "Employee not found."}</p>
-      </AppShell>
-    );
+    return <p>{error || "Employee not found."}</p>;
   }
 
   return (
-    <AppShell>
+    <>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold">{employee.name}</h1>
@@ -209,6 +204,6 @@ export function EmployeeDetailClient({
           </tbody>
         </table>
       </div>
-    </AppShell>
+    </>
   );
 }

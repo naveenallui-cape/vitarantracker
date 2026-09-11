@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { AppShell } from "@/components/app-shell";
 import { api, formatDuration, formatTimestamp } from "@/lib/api";
 import type { WorkTimeReport } from "@/lib/types";
 
@@ -63,7 +62,7 @@ export function ReportsClient({
   }
 
   return (
-    <AppShell>
+    <>
       <h1 className="text-3xl font-semibold">Daily work</h1>
       <p className="mt-2 mb-6 max-w-3xl text-sm text-[#5d6b63]">
         Admin view of every employee, every day. Active time is keyboard and
@@ -187,6 +186,6 @@ export function ReportsClient({
           </div>
         </>
       ) : null}
-    </AppShell>
+    </>
   );
 }
