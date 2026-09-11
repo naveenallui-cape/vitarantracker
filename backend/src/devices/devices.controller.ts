@@ -26,6 +26,13 @@ export class DevicesController {
     return this.devicesService.findMany(query);
   }
 
+  @Get('recent-activity')
+  recentActivity(@Query('limit') limit?: string) {
+    return this.devicesService.recentActivity(
+      limit ? Number(limit) : 40,
+    );
+  }
+
   @Get(':id/history')
   history(@Param('id') id: string) {
     return this.devicesService.assignmentHistory(id);

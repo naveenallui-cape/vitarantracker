@@ -13,6 +13,7 @@ describe('DevicesService', () => {
       findUnique: jest.fn(),
       findMany: jest.fn(),
     },
+    activityEvent: { findMany: jest.fn() },
     employee: { findFirst: jest.fn() },
     deviceAssignment: { findMany: jest.fn() },
     $transaction: jest.fn(),

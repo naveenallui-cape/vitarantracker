@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ADMIN_TOKEN_COOKIE, apiBaseUrl } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 async function proxy(request: NextRequest, path: string[]) {
   const target = `${apiBaseUrl()}/api/${path.join("/")}${request.nextUrl.search}`;
   const token = request.cookies.get(ADMIN_TOKEN_COOKIE)?.value;
@@ -35,6 +38,7 @@ async function proxy(request: NextRequest, path: string[]) {
       responseHeaders.set(name, value);
     }
   }
+  responseHeaders.set("cache-control", "no-store, max-age=0");
 
   return new NextResponse(upstream.body, {
     status: upstream.status,

@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { StatusBadge } from "@/components/status-badge";
-import { api, formatDuration, formatTimestamp } from "@/lib/api";
+import { api, formatDuration, formatTimestamp, listFrom } from "@/lib/api";
 import type { Device, Employee } from "@/lib/types";
 
 type WorkTime = {
@@ -43,7 +43,7 @@ export default function EmployeeDetailPage() {
       api<WorkTime>(`/admin/employees/${params.id}/work-time`),
     ]);
     setEmployee(nextEmployee);
-    setDevices(nextDevices);
+    setDevices(listFrom<Device>(nextDevices));
     setWork(nextWork);
   }
 

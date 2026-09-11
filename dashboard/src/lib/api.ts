@@ -15,6 +15,8 @@ export async function api<T>(
 ): Promise<T> {
   const response = await fetch(`/api/backend${path}`, {
     ...init,
+    cache: "no-store",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...(init.headers ?? {}),
@@ -30,6 +32,20 @@ export async function api<T>(
   }
 
   return (await response.json()) as T;
+}
+
+export function listFrom<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+  if (
+    payload &&
+    typeof payload === "object" &&
+    Array.isArray((payload as { data?: unknown }).data)
+  ) {
+    return (payload as { data: T[] }).data;
+  }
+  return [];
 }
 
 export function formatDuration(totalSeconds: number) {

@@ -37,6 +37,7 @@ export default function ReportsPage() {
     }
     const response = await fetch(
       `/api/backend/admin/reports/work-time/export?${query}`,
+      { cache: "no-store", credentials: "include" },
     );
     if (!response.ok) {
       setError("CSV export failed");

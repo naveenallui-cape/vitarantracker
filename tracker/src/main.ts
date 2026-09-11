@@ -104,7 +104,7 @@ ipcMain.handle("tracker:get-state", () => {
     employeeId: credentials?.employeeId ?? "",
     deviceName: credentials?.deviceName ?? os.hostname(),
     hostname: os.hostname(),
-    backendUrl: credentials?.backendUrl ?? "http://localhost:4000",
+    backendUrl: credentials?.backendUrl ?? "https://vitarantracker-one.vercel.app",
     status: currentStatus,
     platform: process.platform,
     windowsOnly: isWindows(),

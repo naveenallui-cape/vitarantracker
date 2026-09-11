@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { StatusBadge } from "@/components/status-badge";
-import { api, formatTimestamp } from "@/lib/api";
+import { api, formatTimestamp, listFrom } from "@/lib/api";
 import type { Device, Paginated } from "@/lib/types";
 
 export default function DevicesPage() {
@@ -18,7 +18,7 @@ export default function DevicesPage() {
     if (status) query.set("status", status);
     if (search) query.set("search", search);
     const result = await api<Paginated<Device>>(`/admin/devices?${query}`);
-    setDevices(result.data);
+    setDevices(listFrom<Device>(result));
   }
 
   useEffect(() => {
@@ -69,7 +69,14 @@ export default function DevicesPage() {
             </tr>
           </thead>
           <tbody>
-            {devices.map((device) => (
+            {devices.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-sm text-[#5d6b63]">
+                  No Windows devices registered yet.
+                </td>
+              </tr>
+            ) : (
+              devices.map((device) => (
               <tr key={device.id} className="border-t border-[#efeae0]">
                 <td className="px-4 py-3">
                   <Link href={`/devices/${device.id}`} className="font-medium text-[#1f6f4a]">
@@ -92,7 +99,8 @@ export default function DevicesPage() {
                 </td>
                 <td className="px-4 py-3">{formatTimestamp(device.lastSeenAt)}</td>
               </tr>
-            ))}
+            ))
+            )}
           </tbody>
         </table>
       </div>

@@ -89,6 +89,27 @@ export class DevicesService {
     return paginate(data, total, page, limit);
   }
 
+  async recentActivity(limit = 40) {
+    const take = Math.min(100, Math.max(1, limit));
+    const events = await this.prisma.activityEvent.findMany({
+      take,
+      orderBy: { occurredAt: 'desc' },
+      select: {
+        employeeId: true,
+        deviceId: true,
+        eventType: true,
+        occurredAt: true,
+      },
+    });
+
+    return events.map((event) => ({
+      employeeId: event.employeeId,
+      deviceId: event.deviceId,
+      status: event.eventType,
+      timestamp: event.occurredAt.toISOString(),
+    }));
+  }
+
   async findOne(id: string) {
     const device = await this.prisma.device.findUnique({
       where: { id },

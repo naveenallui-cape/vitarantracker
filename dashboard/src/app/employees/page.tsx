@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { StatusBadge } from "@/components/status-badge";
-import { api } from "@/lib/api";
+import { api, listFrom } from "@/lib/api";
 import type { Employee, Paginated } from "@/lib/types";
 
 export default function EmployeesPage() {
@@ -21,7 +21,7 @@ export default function EmployeesPage() {
     const result = await api<Paginated<Employee>>(
       `/admin/employees?${query.toString()}`,
     );
-    setEmployees(result.data);
+    setEmployees(listFrom<Employee>(result));
   }
 
   useEffect(() => {
@@ -82,7 +82,14 @@ export default function EmployeesPage() {
             </tr>
           </thead>
           <tbody>
-            {employees.map((employee) => (
+            {employees.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-4 py-8 text-sm text-[#5d6b63]">
+                  No employees yet. Use Add employee to create the first record.
+                </td>
+              </tr>
+            ) : (
+              employees.map((employee) => (
               <tr key={employee.id} className="border-t border-[#efeae0]">
                 <td className="px-4 py-3">
                   <Link
@@ -98,7 +105,8 @@ export default function EmployeesPage() {
                   <StatusBadge status={employee.status} />
                 </td>
               </tr>
-            ))}
+            ))
+            )}
           </tbody>
         </table>
       </div>

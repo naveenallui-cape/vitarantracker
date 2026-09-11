@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { io } from "socket.io-client";
 import { AppShell } from "@/components/app-shell";
 import { StatusBadge } from "@/components/status-badge";
-import { api, formatTimestamp } from "@/lib/api";
+import { api, formatTimestamp, listFrom } from "@/lib/api";
 import type { Device, LiveActivity, Paginated } from "@/lib/types";
 
 export default function LivePage() {
@@ -14,11 +14,16 @@ export default function LivePage() {
 
   useEffect(() => {
     let cancelled = false;
-    void api<Paginated<Device>>("/admin/devices?limit=100")
-      .then((result) => {
-        if (!cancelled) {
-          setDevices(result.data);
+    void Promise.all([
+      api<Paginated<Device>>("/admin/devices?limit=100"),
+      api<LiveActivity[]>("/admin/devices/recent-activity?limit=40"),
+    ])
+      .then(([deviceResult, liveEvents]) => {
+        if (cancelled) {
+          return;
         }
+        setDevices(listFrom<Device>(deviceResult));
+        setEvents(Array.isArray(liveEvents) ? liveEvents : []);
       })
       .catch((reason: Error) => setError(reason.message));
 
@@ -94,7 +99,15 @@ export default function LivePage() {
               </tr>
             </thead>
             <tbody>
-              {devices.map((device) => (
+              {devices.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-sm text-[#5d6b63]">
+                    No Windows devices yet. Add an employee, generate a
+                    registration code, and register the tracker.
+                  </td>
+                </tr>
+              ) : (
+                devices.map((device) => (
                 <tr key={device.id} className="border-t border-[#efeae0]">
                   <td className="px-4 py-3">
                     <div className="font-medium">
@@ -123,7 +136,8 @@ export default function LivePage() {
                     {formatTimestamp(device.lastSeenAt)}
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </section>
