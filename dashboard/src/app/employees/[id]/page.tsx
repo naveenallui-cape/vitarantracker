@@ -11,6 +11,10 @@ export default async function EmployeeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const to = new Date().toISOString().slice(0, 10);
+  const fromDate = new Date();
+  fromDate.setUTCDate(fromDate.getUTCDate() - 13);
+  const from = fromDate.toISOString().slice(0, 10);
   let employee: Employee | null = null;
   let devices: Device[] = [];
   let work: WorkTime | null = null;
@@ -20,7 +24,9 @@ export default async function EmployeeDetailPage({
     const [nextEmployee, nextDevices, nextWork] = await Promise.all([
       serverApi<Employee>(`/admin/employees/${id}`),
       serverApi<Device[]>(`/admin/employees/${id}/devices`),
-      serverApi<WorkTime>(`/admin/employees/${id}/work-time`),
+      serverApi<WorkTime>(
+        `/admin/employees/${id}/work-time?from=${from}&to=${to}`,
+      ),
     ]);
     employee = nextEmployee;
     devices = listFrom<Device>(nextDevices);

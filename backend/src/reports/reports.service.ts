@@ -1,36 +1,108 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { parseUtcDate } from '../common/utils/time.util';
+import {
+  addUtcDays,
+  formatUtcDate,
+  parseUtcDate,
+  startOfUtcDay,
+} from '../common/utils/time.util';
 import { WorkTimeReportQueryDto } from './dto/work-time-report-query.dto';
+
+const EMPLOYEE_SELECT = {
+  id: true,
+  employeeId: true,
+  name: true,
+  email: true,
+  department: true,
+  designation: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.EmployeeSelect;
 
 @Injectable()
 export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async workTime(query: WorkTimeReportQueryDto) {
-    const where = this.buildWhere(query);
-    const summaries = await this.prisma.dailyWorkSummary.findMany({
-      where,
-      include: {
-        employee: {
-          select: {
-            id: true,
-            employeeId: true,
-            name: true,
-            department: true,
-            designation: true,
-            status: true,
-          },
+    const today = formatUtcDate(new Date());
+    const from = parseUtcDate(query.from ?? today);
+    const to = parseUtcDate(query.to ?? today);
+    const dates = this.eachUtcDate(from, to);
+
+    const employeeWhere: Prisma.EmployeeWhereInput = {};
+    if (query.employeeId) {
+      employeeWhere.OR = [
+        { id: query.employeeId },
+        { employeeId: query.employeeId },
+      ];
+    }
+    if (query.department) {
+      employeeWhere.department = {
+        equals: query.department,
+        mode: 'insensitive',
+      };
+    }
+    if (query.deviceId) {
+      employeeWhere.devices = { some: { id: query.deviceId } };
+    }
+
+    const [employees, summaries] = await Promise.all([
+      this.prisma.employee.findMany({
+        where: employeeWhere,
+        select: EMPLOYEE_SELECT,
+        orderBy: { employeeId: 'asc' },
+      }),
+      this.prisma.dailyWorkSummary.findMany({
+        where: {
+          date: { gte: from, lte: to },
+          ...(Object.keys(employeeWhere).length > 0
+            ? { employee: employeeWhere }
+            : {}),
         },
-      },
-      orderBy: [{ date: 'asc' }, { employee: { employeeId: 'asc' } }],
-    });
+        include: { employee: { select: EMPLOYEE_SELECT } },
+      }),
+    ]);
+
+    const byKey = new Map(
+      summaries.map((row) => [
+        `${row.employeeId}|${formatUtcDate(row.date)}`,
+        row,
+      ]),
+    );
+
+    const rows = employees.flatMap((employee) =>
+      dates.map((date) => {
+        const existing = byKey.get(`${employee.id}|${date}`);
+        if (existing) {
+          return existing;
+        }
+        return {
+          id: `empty-${employee.id}-${date}`,
+          employeeId: employee.id,
+          date: parseUtcDate(date),
+          firstActiveAt: null,
+          lastActivityAt: null,
+          activeSeconds: 0,
+          idleSeconds: 0,
+          lockedSeconds: 0,
+          totalTrackedSeconds: 0,
+          createdAt: parseUtcDate(date),
+          updatedAt: parseUtcDate(date),
+          employee,
+        };
+      }),
+    );
 
     return {
-      filters: query,
-      rows: summaries,
-      totals: summaries.reduce(
+      filters: {
+        ...query,
+        from: formatUtcDate(from),
+        to: formatUtcDate(to),
+      },
+      rows,
+      totals: rows.reduce(
         (acc, row) => ({
           activeSeconds: acc.activeSeconds + row.activeSeconds,
           idleSeconds: acc.idleSeconds + row.idleSeconds,
@@ -55,7 +127,7 @@ export class ReportsService {
       'Name',
       'Department',
       'Date',
-      'Active Seconds',
+      'Keyboard/Mouse Active Seconds',
       'Idle Seconds',
       'Locked Seconds',
       'Total Tracked Seconds',
@@ -68,7 +140,7 @@ export class ReportsService {
         row.employee.employeeId,
         this.csv(row.employee.name),
         this.csv(row.employee.department),
-        row.date.toISOString().slice(0, 10),
+        formatUtcDate(row.date instanceof Date ? row.date : new Date(row.date)),
         row.activeSeconds,
         row.idleSeconds,
         row.lockedSeconds,
@@ -81,41 +153,15 @@ export class ReportsService {
     return [header, ...lines].join('\n');
   }
 
-  private buildWhere(
-    query: WorkTimeReportQueryDto,
-  ): Prisma.DailyWorkSummaryWhereInput {
-    const where: Prisma.DailyWorkSummaryWhereInput = {};
-
-    if (query.from || query.to) {
-      where.date = {};
-      if (query.from) {
-        where.date.gte = parseUtcDate(query.from);
-      }
-      if (query.to) {
-        where.date.lte = parseUtcDate(query.to);
-      }
+  private eachUtcDate(from: Date, to: Date): string[] {
+    const dates: string[] = [];
+    let cursor = startOfUtcDay(from);
+    const end = startOfUtcDay(to);
+    while (cursor.getTime() <= end.getTime()) {
+      dates.push(formatUtcDate(cursor));
+      cursor = addUtcDays(cursor, 1);
     }
-
-    if (query.employeeId || query.department || query.deviceId) {
-      where.employee = {};
-      if (query.employeeId) {
-        where.employee.OR = [
-          { id: query.employeeId },
-          { employeeId: query.employeeId },
-        ];
-      }
-      if (query.department) {
-        where.employee.department = {
-          equals: query.department,
-          mode: 'insensitive',
-        };
-      }
-      if (query.deviceId) {
-        where.employee.devices = { some: { id: query.deviceId } };
-      }
-    }
-
-    return where;
+    return dates;
   }
 
   private csv(value: string): string {

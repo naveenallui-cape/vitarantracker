@@ -181,7 +181,8 @@ export function EmployeeDetailClient({
       </div>
       <h2 className="mb-3 text-lg font-semibold">Work time</h2>
       <p className="mb-3 text-sm text-[#5d6b63]">
-        Computer activity, not proof of continuous work. Active{" "}
+        Computer activity from keyboard and mouse on the company laptop, not
+        proof of continuous work. Active{" "}
         {formatDuration(work?.totals.activeSeconds ?? 0)} · Idle{" "}
         {formatDuration(work?.totals.idleSeconds ?? 0)} · Locked{" "}
         {formatDuration(work?.totals.lockedSeconds ?? 0)}
@@ -191,7 +192,7 @@ export function EmployeeDetailClient({
           <thead className="border-b border-[#d9d4c8] text-xs uppercase text-[#5d6b63]">
             <tr>
               <th className="px-4 py-3">Date</th>
-              <th className="px-4 py-3">Active</th>
+              <th className="px-4 py-3">Keyboard/mouse</th>
               <th className="px-4 py-3">Idle</th>
               <th className="px-4 py-3">Locked</th>
             </tr>
