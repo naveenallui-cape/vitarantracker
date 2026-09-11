@@ -17,10 +17,16 @@ async function proxy(request: NextRequest, path: string[]) {
     headers.set("authorization", `Bearer ${token}`);
   }
 
-  const body =
+  const rawBody =
     request.method === "GET" || request.method === "HEAD"
       ? undefined
       : await request.arrayBuffer();
+  const body =
+    rawBody && rawBody.byteLength > 0 ? rawBody : undefined;
+
+  if (!body) {
+    headers.delete("content-type");
+  }
 
   const upstream = await fetch(target, {
     method: request.method,

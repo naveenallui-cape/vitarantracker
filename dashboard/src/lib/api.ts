@@ -13,14 +13,26 @@ export async function api<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
+  const method = (init.method ?? "GET").toUpperCase();
+  const headers: Record<string, string> = {
+    ...((init.headers as Record<string, string> | undefined) ?? {}),
+  };
+  const needsBody =
+    method === "POST" || method === "PATCH" || method === "PUT";
+  const body =
+    init.body == null && needsBody ? "{}" : init.body;
+
+  if (body != null && !headers["Content-Type"] && !headers["content-type"]) {
+    headers["Content-Type"] = "application/json";
+  }
+
   const response = await fetch(`/api/backend${path}`, {
     ...init,
+    method,
+    body,
     cache: "no-store",
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(init.headers ?? {}),
-    },
+    headers,
   });
 
   if (!response.ok) {

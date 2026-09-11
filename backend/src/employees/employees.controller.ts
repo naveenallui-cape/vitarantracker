@@ -20,6 +20,7 @@ import {
 } from '../common/decorators/current-admin.decorator';
 import { DevicesService } from '../devices/devices.service';
 import { DailySummaryService } from '../work-time/daily-summary.service';
+import { DeviceRegistrationService } from '../device-registration/device-registration.service';
 import { WorkTimeReportQueryDto } from '../reports/dto/work-time-report-query.dto';
 
 @Controller('admin/employees')
@@ -29,6 +30,7 @@ export class EmployeesController {
     private readonly employeesService: EmployeesService,
     private readonly devicesService: DevicesService,
     private readonly dailySummaryService: DailySummaryService,
+    private readonly deviceRegistration: DeviceRegistrationService,
   ) {}
 
   @Get()
@@ -42,6 +44,14 @@ export class EmployeesController {
     @CurrentAdmin() admin: AuthenticatedAdmin,
   ) {
     return this.employeesService.create(dto, admin.id);
+  }
+
+  @Post(':id/device-registration-code')
+  generateCode(
+    @Param('id') id: string,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    return this.deviceRegistration.generateCode(id, admin.id);
   }
 
   @Get(':id/devices')

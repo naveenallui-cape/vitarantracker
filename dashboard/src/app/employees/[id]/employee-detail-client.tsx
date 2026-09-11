@@ -58,9 +58,10 @@ export function EmployeeDetailClient({
   }
 
   async function generateCode() {
+    setError("");
     const result = await api<{ code: string; expiresAt: string }>(
       `/admin/employees/${employeeId}/device-registration-code`,
-      { method: "POST" },
+      { method: "POST", body: "{}" },
     );
     setCode(result);
   }

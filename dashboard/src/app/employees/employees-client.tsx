@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { StatusBadge } from "@/components/status-badge";
-import { api, listFrom } from "@/lib/api";
+import { api, formatTimestamp, listFrom } from "@/lib/api";
 import type { Employee, Paginated } from "@/lib/types";
 
 export function EmployeesClient({
@@ -14,11 +15,18 @@ export function EmployeesClient({
   initialEmployees: Employee[];
   initialError?: string;
 }) {
+  const router = useRouter();
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [error, setError] = useState(initialError);
   const [showForm, setShowForm] = useState(false);
+  const [code, setCode] = useState<{
+    employeeId: string;
+    code: string;
+    expiresAt: string;
+  } | null>(null);
+  const [generatingId, setGeneratingId] = useState("");
 
   async function load() {
     const query = new URLSearchParams({ limit: "100" });
@@ -28,6 +36,30 @@ export function EmployeesClient({
       `/admin/employees?${query.toString()}`,
     );
     setEmployees(listFrom<Employee>(result));
+  }
+
+  async function generateCode(employee: Employee) {
+    setError("");
+    setGeneratingId(employee.id);
+    try {
+      const result = await api<{ code: string; expiresAt: string }>(
+        `/admin/employees/${employee.id}/device-registration-code`,
+        { method: "POST", body: "{}" },
+      );
+      setCode({
+        employeeId: employee.employeeId,
+        code: result.code,
+        expiresAt: result.expiresAt,
+      });
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Could not generate registration code",
+      );
+    } finally {
+      setGeneratingId("");
+    }
   }
 
   return (
@@ -73,6 +105,18 @@ export function EmployeesClient({
         </button>
       </div>
       {error ? <p className="mb-4 text-sm text-[#9a3b32]">{error}</p> : null}
+      {code ? (
+        <div className="mb-4 rounded-2xl border border-[#1f6f4a] bg-[#e4f3ea] p-5">
+          <p className="text-sm font-medium">
+            Registration code for {code.employeeId}. Give this to the Windows
+            tracker. It is shown once.
+          </p>
+          <p className="mt-2 font-mono text-2xl tracking-[0.3em]">{code.code}</p>
+          <p className="mt-1 text-xs text-[#5d6b63]">
+            Expires {formatTimestamp(code.expiresAt)}
+          </p>
+        </div>
+      ) : null}
       <div className="overflow-hidden rounded-2xl bg-[var(--panel)]">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-[#d9d4c8] text-xs uppercase tracking-wide text-[#5d6b63]">
@@ -81,12 +125,13 @@ export function EmployeesClient({
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Department</th>
               <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Code</th>
             </tr>
           </thead>
           <tbody>
             {employees.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-sm text-[#5d6b63]">
+                <td colSpan={5} className="px-4 py-8 text-sm text-[#5d6b63]">
                   No employees yet. Use Add employee to create the first record.
                 </td>
               </tr>
@@ -106,6 +151,18 @@ export function EmployeesClient({
                   <td className="px-4 py-3">
                     <StatusBadge status={employee.status} />
                   </td>
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      disabled={generatingId === employee.id}
+                      onClick={() => void generateCode(employee)}
+                      className="rounded-lg bg-[#1f6f4a] px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
+                    >
+                      {generatingId === employee.id
+                        ? "Generating..."
+                        : "Generate code"}
+                    </button>
+                  </td>
                 </tr>
               ))
             )}
@@ -115,9 +172,9 @@ export function EmployeesClient({
       {showForm ? (
         <CreateEmployeeModal
           onClose={() => setShowForm(false)}
-          onCreated={() => {
+          onCreated={(employee) => {
             setShowForm(false);
-            void load();
+            router.push(`/employees/${employee.id}`);
           }}
         />
       ) : null}
@@ -130,7 +187,7 @@ function CreateEmployeeModal({
   onCreated,
 }: {
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (employee: Employee) => void;
 }) {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -141,7 +198,7 @@ function CreateEmployeeModal({
     setSaving(true);
     setError("");
     try {
-      await api("/admin/employees", {
+      const created = await api<Employee>("/admin/employees", {
         method: "POST",
         body: JSON.stringify({
           employeeId: form.get("employeeId"),
@@ -151,7 +208,7 @@ function CreateEmployeeModal({
           designation: form.get("designation"),
         }),
       });
-      onCreated();
+      onCreated(created);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not create");
     } finally {
